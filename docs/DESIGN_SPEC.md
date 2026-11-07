@@ -1,8 +1,7 @@
-# CQA Hackathon — Build Spec for Claude Code
+# CQA — design spec
 
-> **How to use this file.** Put it in the repo root as `SPEC.md`. Put the official checklist PDF at `docs/checklist.pdf`. Then tell Claude Code:
-> "Read SPEC.md fully. Implement milestone M0, run its checks, commit, then stop and report what's done and what's next."
-> Repeat for each milestone.
+> Original design spec written at the start of the hackathon. The implementation follows it with
+> the deviations recorded in `docs/OPEN_QUESTIONS.md` (rules from the checklist PDF and organizers' answers).
 
 ---
 
