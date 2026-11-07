@@ -1,5 +1,21 @@
 # Eval changelog
 
+## Summary — overnight loop (stopped 01:15 at a plateau, on request)
+
+- **14 rounds run** (0 = baseline, 1–13 changes; round 14 analysis stopped). **5 changes kept** (rounds 1, 2, 5, 9, 13), 8 reverted.
+- **TUNE 68.1% → 72.9%** (98 → 105 of 144). **HOLDOUT 78.1% → 81.2%** (50 → 52 of 64). Final rules = commit 23d1b96.
+- Per criterion, TUNE / HOLDOUT, baseline → final: needs 33→44 / 50→75 · empathy 67→83 / 88→88 · dialog management 61→67 / 75→75 ·
+  closing 72→78 / 88→88 · contact 100 / 100 · identification 67→67 / 75→75 · consultation 56→56 / 75→75 · gross errors 89→89 / 75→75.
+- Per language, TUNE: EN 67→79, RU 66→70, KZ 71→73. HOLDOUT: RU 84→91, EN 81→81, **KZ 62.5→62.5 (still the weakest)**.
+- Kept: needs judges only the clarification, not answer quality; empathy = politeness when no complaint, but a brushed-off objection is «Нет»;
+  dialog management sees client follow-ups (a repeated question → 4); closing counts an explicit hand-off («передам на проверку»), not advice.
+- What failed: further needs rewording (rounds 3, 10); broadening identification N/A (4); generous closing (6) and «Да» closing examples (11); consultation 5-vs-10 (8).
+- **Team decision candidates:** two gross_errors clarifications (rounds 7 and 12) each gave HOLDOUT +2 (gross errors 75→100%) with TUNE flat,
+  so the rule reverted them. Both only restate the official meaning; adopt one by hand if you accept a holdout-informed change.
+- Nothing broken: 0 «требует проверки» in every run; tests pass; no Python, gold or DB changes; holdout disagreements never read.
+- Next ideas: identification on sherkala (its verdict contradicts its own reasoning — needs a different approach, e.g. KZ-language rules);
+  consultation's small-step scale is noisy (1 label swings it); the hybrid cloud mode (README) is far ahead of any local prompt tuning.
+
 ## Overnight loop (2026-11-07 → 08)
 
 Self-improving loop on `checklists/seed.json` only. One change per round; keep it only if TUNE gains ≥ 1 label
