@@ -20,6 +20,7 @@ and HOLDOUT doesn't drop. Settings fixed: qwen3:8b (RU/EN) + sherkala (KZ), voti
 | 6 | closing too strict: short next step inside the goodbye line not counted as summary (4 yes→no) | step 3 += "a short next step in the goodbye line counts as summary" with RU/KZ/EN examples incl. advice («уточните комиссию в банке»); step 1 += system «Клиент завершил разговор» → N/A (team #5) | 71.5 → 72.9% (105) | 81.2 → 79.7% (51) | reverted |
 | 7 | gross_errors: unanswered question flagged as gross error (1 TUNE) | `gross_errors.instructions` += "incomplete answer / no answer / consultation mistake is NOT a gross error" (team #6) | 71.5 → 71.5% (103) | 81.2 → **84.4%** (54) | reverted (rule: needs a TUNE gain) |
 | 8 | consultation: one question answered, the other ignored → model gives 5 (gold 10) | step 4 += "if at least one question got a concrete answer and another stayed open → 10, not 5" (team #7 not used as written: it would push the gold-5 hand-off dialogs up) | 71.5 → 72.2% (104) | 81.2 → 79.7% (51) | reverted |
+| 9 | closing: explicit hand-off inside the goodbye line not counted as summary | step 3 += "a message that the client's question was passed on counts as summary even in the goodbye line (RU/KZ/EN examples); advice/instructions before the goodbye do NOT" — narrow version of round 6 | 71.5 → **72.2%** (104) | 81.2 → 81.2% (52) | **kept** |
 
 Round 0 per criterion (TUNE): contact 100, needs 33.3, identification 66.7, consultation 55.6, empathy 66.7,
 dialog management 61.1, closing 72.2, gross errors 88.9. Per language (TUNE): EN 66.7, KZ 71.4, RU 65.6.
@@ -49,3 +50,6 @@ Next: consultation (team #7) — an honest hand-off with a clear next step is a 
 
 Round 8 lesson: the 5-vs-10 boundary helped TUNE consultation (56→61%) but HOLDOUT consultation fell 75→62.5%; the scale is noisy at the small end and one label swings it. 3 rounds in a row without a kept change.
 Next (last before the stop rule): closing, NARROW variant — only an explicit hand-off of the client's question ("передам на проверку", "ответ пришлём сюда", "тексеруге жіберемін") counts as a summary; advice still doesn't.
+
+Round 9 lesson: the narrow closing rule (hand-off counts, advice doesn't) kept round 6's TUNE gain without its holdout loss (TUNE closing 72→78%, HOLDOUT closing unchanged). Precision beats breadth for small models.
+Next: fresh analyst + critic pass on the current TUNE disagreements (team list is exhausted).
