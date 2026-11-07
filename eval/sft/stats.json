@@ -1,0 +1,45 @@
+{
+  "checklist_version_id": 4,
+  "checklist_version": 4,
+  "train_dialogs": 36,
+  "val_dialogs": [
+    "p1-en-006",
+    "p1-en-014",
+    "p1-ru-025"
+  ],
+  "holdout": [
+    "p1-en-011",
+    "p1-en-015",
+    "p1-kz-007",
+    "p1-kz-014",
+    "p1-ru-001",
+    "p1-ru-013",
+    "p1-ru-024",
+    "p1-ru-028"
+  ],
+  "dropped_holdout_examples": [
+    [
+      "contact",
+      "p1-ru-001"
+    ],
+    [
+      "needs",
+      "p1-ru-001"
+    ],
+    [
+      "dialog_management",
+      "p1-ru-028"
+    ],
+    [
+      "closing",
+      "p1-ru-001"
+    ]
+  ],
+  "train": 288,
+  "train_silver": 224,
+  "target_from_app": 195,
+  "target_from_template": 117,
+  "train_gold": 64,
+  "val": 24,
+  "val_silver": 24
+}
