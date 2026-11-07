@@ -17,6 +17,7 @@ and HOLDOUT doesn't drop. Settings fixed: qwen3:8b (RU/EN) + sherkala (KZ), voti
 | 3 | needs: sherkala says «Да» with no operator question (4 KZ); qwen misses a real operator question (3 RU) | `needs.instructions` += final check "«Да» only with an operator line with «?» to the client before the answer, cited in evidence_ids" (team #2) | 70.8 → 70.1% (101) | 81.2 → 79.7% (51) | reverted |
 | 4 | identification: "where to find X" treated as disclosure (mostly KZ) | `identification.instructions` += "explaining where the client finds tariff/report/requisites/section is not disclosure → N/A" + Kazakh N/A example (p1-kz-001) (team #3) | 70.8 → 69.4% (100) | 81.2 → 78.1% (50) | reverted |
 | 5 | dialog_management too lenient: model says "client didn't re-ask" when the client had to repeat/chase | step 2 += "repeat the question because the operator answered something else or dodged → 4" + `focus: ["client_followups"]` (team #4; "unanswered alone → 4" left out to keep step 3's 7) | 70.8 → **71.5%** (103) | 81.2 → 81.2% (52) | **kept** |
+| 6 | closing too strict: short next step inside the goodbye line not counted as summary (4 yes→no) | step 3 += "a short next step in the goodbye line counts as summary" with RU/KZ/EN examples incl. advice («уточните комиссию в банке»); step 1 += system «Клиент завершил разговор» → N/A (team #5) | 71.5 → 72.9% (105) | 81.2 → 79.7% (51) | reverted |
 
 Round 0 per criterion (TUNE): contact 100, needs 33.3, identification 66.7, consultation 55.6, empathy 66.7,
 dialog management 61.1, closing 72.2, gross errors 88.9. Per language (TUNE): EN 66.7, KZ 71.4, RU 65.6.
@@ -37,3 +38,6 @@ Next: dialog_management (team #4) — focus client_followups + "client repeats/r
 
 Round 5 lesson: showing the client's follow-ups as key lines lets the model see a repeated question; dialog management TUNE 61→67%.
 Next: closing (team #5) — a next step inside the goodbye counts as summary; client left before the operator could close → N/A.
+
+Round 6 lesson: closing TUNE 72→83% but HOLDOUT closing 87.5→75%: counting ADVICE as a summary over-accepts plain "answer + goodbye" endings that gold scores «Нет». A narrower variant (only explicit hand-off / where the answer will come, no advice) is a different idea and may be tried once.
+Next: gross_errors (team #6) — "an incomplete answer or unanswered question is NOT a gross error".
