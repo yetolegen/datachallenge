@@ -24,6 +24,7 @@ and HOLDOUT doesn't drop. Settings fixed: qwen3:8b (RU/EN) + sherkala (KZ), voti
 | 10 | needs: sherkala reads «учёл известные детали» as «Да» when the operator only used the client's info (4 KZ) | `needs.yes_rule` rewritten: «Да» = operator asked a question or requested a missing detail before answering; answering from what the client wrote → N/A (analyst + critic) | 72.2 → 72.2% (104) | 81.2 → 79.7% (51) | reverted |
 | 11 | closing: hand-off + goodbye still missed (ru-009, kz-015) | one «Да» example: «[u16] operator: Передам вопрос на проверку. До свидания.» (p1-ru-009), critic-trimmed from two | 72.2 → 70.1% (101) | 81.2 → 82.8% (53) | reverted |
 | 12 | gross_errors: the only disclosure example's source (p1-ru-009) never sees an example | + disclosure example from TUNE p1-en-014 («I can see a withdrawal restriction on your account» before ID) | 72.2 → 72.2% (104) | 81.2 → **84.4%** (54) | reverted (rule: needs a TUNE gain) |
+| 13 | empathy: client objection brushed off by the operator scored «Да» as "no complaint" (3) | `empathy.instructions` += "a client objection/anxious question is a described inconvenience; if the operator brushes it off («можно пропустить», «We can skip that», «Қазір растаудың қажеті жоқ») or leaves it unanswered → «Нет»" | 72.2 → **72.9%** (105) | 81.2 → 81.2% (52) | **kept** |
 
 Round 0 per criterion (TUNE): contact 100, needs 33.3, identification 66.7, consultation 55.6, empathy 66.7,
 dialog management 61.1, closing 72.2, gross errors 88.9. Per language (TUNE): EN 66.7, KZ 71.4, RU 65.6.
@@ -65,3 +66,6 @@ Next: gross_errors — second disclosure example from a TUNE dialog (p1-en-014) 
 
 Round 12 lesson: like round 7, a gross_errors clarification lifts HOLDOUT gross errors 75→100% (+2) with no TUNE change. Two independent gross_errors edits agree. **Team decision candidate** (rounds 7 and 12): both only restate the official meaning.
 Next (last before the stop rule): empathy — a client objection the operator brushes off («We can skip that», «растаудың қажеті жоқ») is an unaddressed concern → «Нет».
+
+Round 13 lesson: the round-2 default ("no complaint → politeness") needed its counterpart: an objection is a complaint. Empathy TUNE 78→83%. Pairing a default with its explicit exception works.
+Next: fresh analyst + critic pass on the round-13 TUNE disagreements.
