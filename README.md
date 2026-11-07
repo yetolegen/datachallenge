@@ -19,6 +19,13 @@ behind every criterion, and supports appeals with a reviewer decision and recalc
 - **One model call per (dialog, criterion)**, evidence cited by utterance id and validated on the server.
 - **All arithmetic is deterministic Python** (weights, N/A redistribution, rounding), unit-tested.
 - **Checklist editable in the UI**, every save is a new version; re-applying re-runs only changed criteria.
+- **Kazakh dialogs go to a Kazakh-specialised model** (Sherkala), RU/EN to qwen3 — all local, $0 per evaluation.
+- **Learning from appeals**: when a reviewer changes an AI score, that case becomes an example for the same
+  criterion in other dialogs (never in its own dialog; toggle in Настройки).
+- **Аналитика**: set-level view for a QA manager — score distribution, where operators lose points,
+  gross-error dialogs, per-language averages.
+- **Results export** in the organizers' format 1.0: `python -m eval.export_results --group <id>` →
+  `results/dev|prod/results.json` (also a button on Наборы).
 
 ## Run (Python 3.11+)
 
