@@ -368,7 +368,8 @@ async def create_evaluation(body: dict = Body(...)):
     with db.connect() as con:
         if not db.row(con, "SELECT id FROM conversations WHERE id=?", (cid,)):
             not_found("Диалог")
-    return get_run(runs.start_run([cid], body.get("checklist_version_id") or cl_mod.active_version_id()))
+    return get_run(runs.start_run([cid], body.get("checklist_version_id") or cl_mod.active_version_id(),
+                                  force=bool(body.get("force"))))
 
 
 @app.get("/api/runs")

@@ -42,6 +42,14 @@ def test_full_demo_flow():
         assert "<transcript>" in tr["prompt"]["user"] and "Идентификация" in tr["prompt"]["user"]
         assert cli.get("/api/criterion-results/999999/trace").status_code == 404
 
+        # live re-run ignoring the cache: 8 fresh model calls, same deterministic answers
+        calls0 = cli.get("/api/stats/cost").json()["calls"]
+        fresh = wait_run(cli, cli.post("/api/evaluations", json={"conversation_id": "f-0", "force": True}).json()["id"])
+        assert fresh["new_calls"] == 8 and fresh["cache_hits"] == 0
+        assert cli.get("/api/stats/cost").json()["calls"] - calls0 == 8
+        again = cli.get("/api/conversations/f-0").json()["view"]
+        assert again["breakdown"]["total"] == view["breakdown"]["total"]
+
         # appeal + decision -> new total, original untouched
         contact = next(i for i in view["items"] if i["criterion"]["id"] == "contact")
         a = cli.post(f"/api/criterion-results/{contact['result']['id']}/appeals", json={"comment": "Не представился"}).json()
@@ -96,7 +104,7 @@ def test_full_demo_flow():
         ident = next(c for c in an["criteria"] if c["id"] == "identification")
         assert ident["na"] == 3 and ident["met_pct"] is None
         assert sum(b["count"] for b in an["distribution"]) == 3
-        assert cli.get("/api/stats/cost").json()["calls"] == 29
+        assert cli.get("/api/stats/cost").json()["calls"] == 37  # includes the 8 forced live re-run calls
 
 
 def test_focus_lines_in_prompt():

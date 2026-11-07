@@ -12,7 +12,7 @@ log = logging.getLogger("cqa.runs")
 _tasks = set()  # keep references so tasks aren't garbage-collected mid-run
 
 
-def start_run(conv_ids, version_id, group=None):
+def start_run(conv_ids, version_id, group=None, force=False):
     v = get_version(version_id)
     if not v:
         raise ValueError("Версия чек-листа не найдена.")
@@ -23,13 +23,13 @@ def start_run(conv_ids, version_id, group=None):
             "INSERT INTO runs(dataset_group_id,checklist_version_id,status,total,scope,started_at) VALUES(?,?,?,?,?,?)",
             (group, version_id, "running", len(conv_ids) * len(v["checklist"]["criteria"]), json.dumps(conv_ids), db.now()))
         rid = cur.lastrowid
-    t = asyncio.get_running_loop().create_task(_run(rid, conv_ids, v))
+    t = asyncio.get_running_loop().create_task(_run(rid, conv_ids, v, force))
     _tasks.add(t)
     t.add_done_callback(_tasks.discard)
     return rid
 
 
-async def _run(rid, conv_ids, version):
+async def _run(rid, conv_ids, version, force=False):
     def progress(hit, status):
         with db.connect() as con:
             con.execute("UPDATE runs SET done=done+1, cache_hits=cache_hits+?, new_calls=new_calls+?,"
@@ -40,7 +40,7 @@ async def _run(rid, conv_ids, version):
 
     async def one(cid):
         try:
-            await evaluate_conversation(cid, version, rid, progress)
+            await evaluate_conversation(cid, version, rid, progress, force=force)
         except Exception as e:  # noqa: BLE001 - per-dialog failure, the batch goes on
             log.exception("run %s: %s failed", rid, cid)
             errors.append(f"{cid}: {e}")

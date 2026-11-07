@@ -88,6 +88,16 @@ export async function render(main, route) {
     const run = await api('/evaluations', { method: 'POST', body: { conversation_id: id } });
     evalBox.replaceChildren(h('h2', {}, 'Идёт оценка'), runProgress(run, () => { toast('Оценка готова'); reload(); }));
   });
+  // live re-run that ignores the cache: every criterion is a fresh model call (shows the analysis is real)
+  const freshBtn = view && h('button', { class: 'btn', type: 'button', title: 'Все критерии заново вызовом модели, без кэша' },
+    'Пересчитать с нуля');
+  if (freshBtn) {
+    freshBtn.onclick = () => act(freshBtn, async () => {
+      const run = await api('/evaluations', { method: 'POST', body: { conversation_id: id, force: true } });
+      evalBox.replaceChildren(h('h2', {}, 'Модель оценивает заново, без кэша'),
+        runProgress(run, () => { toast('Готово: оценка выполнена заново'); reload(); }));
+    });
+  }
   const evalSel = evaluations.length > 1 && h('select', {
     'aria-label': 'Версия чек-листа', value: String(view ? view.evaluation.id : ''),
     onchange: (e) => { location.hash = `#/dialog/${encodeURIComponent(id)}?eval=${e.target.value}`; },
@@ -107,7 +117,7 @@ export async function render(main, route) {
     h('h1', {}, conv.source_id),
     h('span', { class: 'muted small' }, `${conv.language} · ${CHANNEL[conv.channel] || conv.channel} · ${conv.dataset_group_id}`),
     conv.revision > 1 && h('span', { class: 'badge mid' }, `Ревизия ${conv.revision}`),
-    h('span', { class: 'spacer' }), evalSel, runBtn);
+    h('span', { class: 'spacer' }), evalSel, freshBtn || '', runBtn);
 
   if (!view) {
     evalBox.append(h('div', { class: 'empty' }, 'Диалог ещё не оценён. Нажмите «Оценить диалог» — будет применён активный чек-лист.'));

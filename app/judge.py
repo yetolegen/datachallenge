@@ -261,13 +261,13 @@ def key_extra(appeals, ens):
     return {"appeals": appeals or [], "ensemble": ens}
 
 
-async def judge_criterion(conv, utts, cl, c, s, extra=None):
+async def judge_criterion(conv, utts, cl, c, s, extra=None, force=False):
     """-> (result dict, cache_hit). Model problems never raise: they end as status needs_review."""
     ens = ensemble_cfg(c, s)
     key = cache_key(conv, cl, c, s, key_extra(extra, ens))
     with db.connect() as con:
         hit = db.row(con, "SELECT result_json FROM judge_cache WHERE cache_key=?", (key,))
-    if hit:
+    if hit and not force:  # force = live re-run on request (e.g. to show the jury a fresh model call)
         return json.loads(hit["result_json"]), True
 
     system = SYSTEM.replace("{lang}", LANG_NAMES.get(config.EXPLANATION_LANG, "Russian"))
@@ -367,7 +367,7 @@ def save_result(con, eval_id, cid, r):
          r["status"], r["cache_key"], r["raw_output"], r["model"], r["prompt_version"], r["cost"], r.get("votes")))
 
 
-async def evaluate_conversation(conv_id, version, run_id=None, on_result=None):
+async def evaluate_conversation(conv_id, version, run_id=None, on_result=None, force=False):
     """version: dict from checklist.get_version. on_result(cache_hit, status) reports progress."""
     cl, s = version["checklist"], llm_settings()
     with db.connect() as con:
@@ -385,11 +385,11 @@ async def evaluate_conversation(conv_id, version, run_id=None, on_result=None):
 
     async def one(c):
         extra = appeal_examples(cl, c, conv_id)
-        if existing.get(c["id"]) == cache_key(conv, cl, c, s, key_extra(extra, ensemble_cfg(c, s))):
+        if not force and existing.get(c["id"]) == cache_key(conv, cl, c, s, key_extra(extra, ensemble_cfg(c, s))):
             if on_result:
                 on_result(True, "ok")
             return
-        r, hit = await judge_criterion(conv, utts, cl, c, s, extra)
+        r, hit = await judge_criterion(conv, utts, cl, c, s, extra, force=force)
         with db.connect() as con:
             save_result(con, eval_id, c["id"], r)
         if on_result:
