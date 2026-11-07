@@ -178,3 +178,23 @@ def test_kz_routing():
         assert cli.get("/api/settings").json()["model_kz"] == "sherkala"
         cli.put("/api/settings", json={"model_kz": ""})  # clearing must switch routing off
         assert cli.get("/api/settings").json()["model_kz"] == ""
+
+
+def test_hybrid_routing_and_claude_request():
+    from app.judge import settings_for_criterion
+    from app.providers import _plain_ids, claude_request
+    s = {"provider": "ollama", "model": "qwen3:8b", "route_criteria": "needs, closing",
+         "route_provider": "anthropic", "route_model": "claude-sonnet-5-5"}
+    assert settings_for_criterion({"id": "needs"}, s)["provider"] == "anthropic"
+    assert settings_for_criterion({"id": "contact"}, s)["model"] == "qwen3:8b"
+    assert settings_for_criterion({"id": "contact"}, {**s, "route_criteria": "*"})["model"] == "claude-sonnet-5-5"
+    assert settings_for_criterion({"id": "needs"}, {**s, "route_criteria": ""})["provider"] == "ollama"
+    req = claude_request({"model": "claude-sonnet-5-5", "claude_effort": "low"}, "SYS",
+                         "Канал: x\n<transcript>\n[u1] client: hi\n</transcript>\n\nКРИТЕРИЙ: …")
+    first, second = req["messages"][0]["content"]
+    assert first["text"].endswith("</transcript>") and first["cache_control"] == {"type": "ephemeral"}
+    assert second["text"].startswith("КРИТЕРИЙ") and "temperature" not in req
+    assert req["fallbacks"] == "default" and req["output_config"]["effort"] == "low"
+    sch = _plain_ids({"type": "object", "properties": {"evidence_ids": {"type": "array", "items": {"enum": ["u1"]}},
+                      "checked_range": {"type": "object"}}, "required": []})
+    assert "enum" not in json.dumps(sch["properties"]["evidence_ids"]) and sch["additionalProperties"] is False

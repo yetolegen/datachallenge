@@ -55,7 +55,7 @@ def model_info(con, group):
     used = db.rows(con, "SELECT DISTINCT l.provider, l.model FROM llm_calls l JOIN conversations c"
                         " ON c.id = l.conversation_id WHERE c.dataset_group_id=? AND l.status='ok'", (group,))
     providers = {u["provider"] for u in used}
-    mode = ("local" if providers <= {"ollama"} else "external_api" if providers <= {"openai"} else "hybrid") \
+    mode = ("local" if providers <= {"ollama"} else "external_api" if providers <= {"openai", "anthropic"} else "hybrid") \
         if providers else "local"
     return {"mode": mode, "name": ", ".join(sorted({u["model"] for u in used})) or "unknown"}
 

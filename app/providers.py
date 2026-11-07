@@ -1,6 +1,7 @@
 """LLM adapters. Each returns LLMResult; parsing/validation lives in judge.py."""
 import asyncio
 import json
+import os
 import random
 import time
 from dataclasses import dataclass
@@ -109,7 +110,78 @@ async def fake(s, system, user, schema, meta):
     return LLMResult(json.dumps(out, ensure_ascii=False), len(user) // 4, 120, 1, "fake", "fake")
 
 
-PROVIDERS = {"ollama": ollama, "openai": openai_compat, "fake": fake}
+def _plain_ids(schema):
+    """Drop the per-dialog utterance-id enums so the schema is identical across dialogs (Claude caches
+    compiled schemas). Ids are still checked server-side in judge.validate()."""
+    s = json.loads(json.dumps(schema))
+    props = s.get("properties", {})
+    if "evidence_ids" in props:
+        props["evidence_ids"] = {"type": "array", "items": {"type": "string"}}
+    if "checked_range" in props:
+        props["checked_range"] = {"type": "object", "properties": {"from": {"type": "string"}, "to": {"type": "string"}},
+                                  "required": ["from", "to"], "additionalProperties": False}
+    s["additionalProperties"] = False
+    return s
+
+
+def claude_request(s, system, user):
+    """Messages API arguments. The transcript (same for the 8 criteria of a dialog) is a separate
+    cache-marked block, so later criteria read it from cache at ~10% of the input price."""
+    cut = user.find("</transcript>")
+    blocks = []
+    if cut != -1:
+        cut += len("</transcript>")
+        blocks.append({"type": "text", "text": user[:cut], "cache_control": {"type": "ephemeral"}})
+        rest = user[cut:].strip()
+        if rest:
+            blocks.append({"type": "text", "text": rest})
+    else:
+        blocks.append({"type": "text", "text": user})
+    return {
+        "model": s["model"],
+        "max_tokens": 8000,  # thinking + the JSON answer
+        "system": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+        "messages": [{"role": "user", "content": blocks}],
+        # Sonnet 5.5: thinking always on; effort is the cost/quality knob. No temperature (rejected).
+        "output_config": {"effort": s.get("claude_effort") or "low"},
+        # on a safety decline the API re-runs the request on Anthropic's recommended fallback model
+        "betas": ["server-side-fallback-2026-07-01"],
+        "fallbacks": "default",
+    }
+
+
+_claude = {}
+
+
+async def claude(s, system, user, schema, meta):
+    try:
+        import anthropic
+    except ImportError:
+        raise ProviderError("Пакет anthropic не установлен: pip install -r requirements.txt")
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        raise ProviderError("ANTHROPIC_API_KEY не задан в .env")
+    if "client" not in _claude:
+        _claude["client"] = anthropic.AsyncAnthropic(timeout=float(s["timeout_s"]), max_retries=3)
+    req = claude_request(s, system, user)
+    req["output_config"]["format"] = {"type": "json_schema", "schema": _plain_ids(schema)}
+    t0 = time.perf_counter()
+    try:
+        r = await _claude["client"].beta.messages.create(**req)
+    except anthropic.APIStatusError as e:
+        raise ProviderError(f"Claude API {e.status_code}: {str(e.message)[:300]}")
+    except anthropic.APIConnectionError as e:
+        raise ProviderError(f"нет связи с Claude API: {e}")
+    if r.stop_reason == "refusal":
+        raise ProviderError("Claude отказался отвечать (refusal)")
+    text = "".join(b.text for b in r.content if getattr(b, "type", "") == "text")
+    u = r.usage
+    # bill-equivalent input tokens: cache writes 1.25x, cache reads 0.1x of the normal input price
+    tin = (u.input_tokens or 0) + 1.25 * (getattr(u, "cache_creation_input_tokens", 0) or 0) \
+        + 0.1 * (getattr(u, "cache_read_input_tokens", 0) or 0)
+    return LLMResult(text, int(tin), u.output_tokens or 0, int((time.perf_counter() - t0) * 1000), s["model"], "anthropic")
+
+
+PROVIDERS = {"ollama": ollama, "openai": openai_compat, "anthropic": claude, "fake": fake}
 
 
 async def complete(settings, system, user, schema, meta):

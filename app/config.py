@@ -47,6 +47,11 @@ LLM_DEFAULTS = {
     # reviewer corrections from appeals are shown to the model as examples for that criterion
     "learn_from_appeals": env("LEARN_FROM_APPEALS", "true"),
     # self-consistency voting: k answers per criterion (1 = off), only for the listed criteria ("*" = all)
+    # hybrid: these criteria go to a cloud model (e.g. claude-sonnet-5-5); empty = fully local
+    "route_criteria": env("ROUTE_CRITERIA", ""),
+    "route_provider": env("ROUTE_PROVIDER", "anthropic"),
+    "route_model": env("ROUTE_MODEL", "claude-sonnet-5-5"),
+    "claude_effort": env("CLAUDE_EFFORT", "low"),
     "ensemble_k": env("ENSEMBLE_K", "1"),
     "ensemble_criteria": env("ENSEMBLE_CRITERIA", "needs,identification,dialog_management"),
     "ensemble_temperature": env("ENSEMBLE_TEMPERATURE", "0.7"),

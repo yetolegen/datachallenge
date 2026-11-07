@@ -1,3 +1,4 @@
+import os
 import csv
 import html
 import io
@@ -70,13 +71,15 @@ def J(v, default=None):
 
 SETTING_KEYS = ["provider", "model", "ollama_url", "ollama_num_ctx", "ollama_think", "openai_base_url",
                 "concurrency", "timeout_s", "model_kz", "provider_kz", "ollama_think_kz", "learn_from_appeals",
-                "ensemble_k", "ensemble_criteria", "ensemble_temperature"]
+                "ensemble_k", "ensemble_criteria", "ensemble_temperature",
+                "route_criteria", "route_provider", "route_model", "claude_effort"]
 
 
 def public_settings():
     s = judge.llm_settings()
     return {**{k: s[k] for k in SETTING_KEYS}, "openai_key_set": bool(config.OPENAI_API_KEY),
-            "api_template_set": "{group_id}" in config.API_URL_TEMPLATE, "prompt_version": judge.PROMPT_VERSION}
+            "api_template_set": "{group_id}" in config.API_URL_TEMPLATE,
+            "anthropic_key_set": bool(os.environ.get("ANTHROPIC_API_KEY")), "prompt_version": judge.PROMPT_VERSION}
 
 
 @app.get("/api/health")
@@ -93,8 +96,8 @@ def get_settings():
 def put_settings(body: dict = Body(...)):
     # keep empty strings: clearing model_kz must switch routing off
     clean = {k: str(body[k]).strip() for k in SETTING_KEYS if body.get(k) is not None}
-    for k in ("provider", "provider_kz"):
-        if clean.get(k) and clean[k] not in ("ollama", "openai", "fake"):
+    for k in ("provider", "provider_kz", "route_provider"):
+        if clean.get(k) and clean[k] not in ("ollama", "openai", "anthropic", "fake"):
             raise ValueError("Провайдер: ollama, openai или fake.")
     for k in ("concurrency", "ollama_num_ctx", "timeout_s", "ensemble_k"):
         if clean.get(k) and (not clean[k].isdigit() or int(clean[k]) < 1):

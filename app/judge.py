@@ -31,6 +31,15 @@ def settings_for(conv, s):
     return s
 
 
+def settings_for_criterion(c, s):
+    """Hybrid routing: listed criteria go to the routed (cloud) model, the rest stay as configured.
+    route_criteria: comma-separated ids, "*" = all, empty = off."""
+    only = [x.strip() for x in str(s.get("route_criteria") or "").split(",") if x.strip()]
+    if only and ("*" in only or c["id"] in only) and s.get("route_model"):
+        return {**s, "provider": s.get("route_provider") or "anthropic", "model": s["route_model"]}
+    return s
+
+
 def semaphore(n):
     if _sem["n"] != n:
         _sem.update(n=n, sem=asyncio.Semaphore(n))
@@ -383,7 +392,10 @@ async def evaluate_conversation(conv_id, version, run_id=None, on_result=None, f
         existing = {r["criterion_id"]: r["cache_key"] for r in db.rows(
             con, "SELECT criterion_id, cache_key FROM criterion_results WHERE evaluation_id=? AND status='ok'", (eval_id,))}
 
+    s_conv = s
+
     async def one(c):
+        s = settings_for_criterion(c, s_conv)
         extra = appeal_examples(cl, c, conv_id)
         if not force and existing.get(c["id"]) == cache_key(conv, cl, c, s, key_extra(extra, ensemble_cfg(c, s))):
             if on_result:
