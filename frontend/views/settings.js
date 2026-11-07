@@ -59,6 +59,12 @@ export async function render(main) {
     h('label', { class: 'field' }, 'Где работает', f.provider_kz),
     input('model_kz', 'Модель для KZ (пусто — как основная)', 'text', { list: 'model-list', placeholder: 'sherkala' }),
     h('label', { class: 'field' }, 'Режим размышлений', f.ollama_think_kz)),
+  h('h3', {}, 'Гибрид: отдельные критерии — в Claude'),
+  grid(
+    input('route_criteria', 'Критерии (id через запятую, * — все; пусто — всё локально)'),
+    input('route_model', 'Облачная модель', 'text', { placeholder: 'claude-sonnet-5-5' }),
+    input('claude_effort', 'Effort (low / medium / high)')),
+  h('p', { class: 'small muted' }, `Ключ Anthropic в .env на сервере: ${s.anthropic_key_set ? 'задан' : 'не задан'}.`),
   h('h3', {}, 'Голосование модели (self-consistency)'),
   grid(
     input('ensemble_k', 'Ответов на критерий (1 — выключено, 3 — рекомендуется)', 'number', { min: 1, max: 9 }),
