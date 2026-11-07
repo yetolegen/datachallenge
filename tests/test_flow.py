@@ -66,3 +66,17 @@ def test_full_demo_flow():
 
         assert cli.get("/api/export/FLOW.csv").status_code == 200
         assert cli.get("/api/stats/cost").json()["calls"] == 27
+
+
+def test_kz_routing():
+    from app.judge import settings_for
+    s = {"model": "qwen3:8b", "ollama_think": "false", "model_kz": "sherkala", "ollama_think_kz": ""}
+    assert settings_for({"language": "KZ"}, s)["model"] == "sherkala"
+    assert settings_for({"language": "KZ"}, s)["ollama_think"] == ""
+    assert settings_for({"language": "RU"}, s)["model"] == "qwen3:8b"
+    assert settings_for({"language": "KZ"}, {**s, "model_kz": ""})["model"] == "qwen3:8b"  # routing off
+    with TestClient(app) as cli:
+        cli.put("/api/settings", json={"model_kz": "sherkala"})
+        assert cli.get("/api/settings").json()["model_kz"] == "sherkala"
+        cli.put("/api/settings", json={"model_kz": ""})  # clearing must switch routing off
+        assert cli.get("/api/settings").json()["model_kz"] == ""

@@ -39,6 +39,9 @@ LLM_DEFAULTS = {
     "ollama_url": env("OLLAMA_URL", "http://localhost:11434"),
     "ollama_num_ctx": env("OLLAMA_NUM_CTX", "12288"),
     "ollama_think": env("OLLAMA_THINK", "false"),
+    # optional Kazakh-specialised model (e.g. Sherkala); empty = KZ dialogs use the main model
+    "model_kz": env("LLM_MODEL_KZ", ""),
+    "ollama_think_kz": env("OLLAMA_THINK_KZ", ""),
     "openai_base_url": env("OPENAI_BASE_URL", "https://api.openai.com/v1"),
     "concurrency": env("LLM_CONCURRENCY", "1"),
     "timeout_s": env("LLM_TIMEOUT_S", "300"),

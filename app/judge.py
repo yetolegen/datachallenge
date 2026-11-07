@@ -17,7 +17,17 @@ _sem = {"n": None, "sem": None}
 def llm_settings():
     with db.connect() as con:
         over = db.get_state(con, "llm_settings", {}) or {}
-    return {**config.LLM_DEFAULTS, **{k: v for k, v in over.items() if v not in (None, "")}}
+    # empty is a real value for these (switch KZ routing / thinking off); for the rest it means "use default"
+    can_be_empty = ("model_kz", "ollama_think", "ollama_think_kz")
+    return {**config.LLM_DEFAULTS,
+            **{k: v for k, v in over.items() if v is not None and (v != "" or k in can_be_empty)}}
+
+
+def settings_for(conv, s):
+    """KZ dialogs go to the Kazakh model when one is set; the cache key follows the model."""
+    if (conv.get("language") or "").upper() == "KZ" and s.get("model_kz"):
+        return {**s, "model": s["model_kz"], "ollama_think": s.get("ollama_think_kz", "")}
+    return s
 
 
 def semaphore(n):
@@ -241,6 +251,7 @@ async def evaluate_conversation(conv_id, version, run_id=None, on_result=None):
         conv, utts = load_conversation(con, conv_id)
         if not conv:
             raise ValueError(f"диалог {conv_id} не найден")
+        s = settings_for(conv, s)
         con.execute("INSERT INTO evaluations(conversation_id,checklist_version_id,run_id,status,created_at)"
                     " VALUES(?,?,?,?,?) ON CONFLICT(conversation_id,checklist_version_id) DO UPDATE SET"
                     " run_id=excluded.run_id, status='running'", (conv_id, version["id"], run_id, "running", db.now()))

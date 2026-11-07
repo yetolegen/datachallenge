@@ -16,6 +16,9 @@ export async function render(main) {
   f.ollama_think = h('select', { value: s.ollama_think ?? '' }, [['false', 'Выключено'], ['true', 'Включено (медленнее)'],
     ['', 'Не передавать (модель без режима размышлений)']].map(([v, t]) => h('option', { value: v }, t)));
 
+  f.ollama_think_kz = h('select', { value: s.ollama_think_kz ?? '' }, [['', 'Не передавать (модель без режима размышлений)'],
+    ['false', 'Выключено'], ['true', 'Включено (медленнее)']].map(([v, t]) => h('option', { value: v }, t)));
+
   const check = h('button', { class: 'btn', type: 'button' }, 'Проверить подключение');
   check.onclick = () => act(check, async () => {
     const r = await api('/llm/models');
@@ -41,7 +44,9 @@ export async function render(main) {
     h('label', { class: 'field' }, 'Режим размышлений (qwen3)', f.ollama_think),
     input('openai_base_url', 'Адрес OpenAI-совместимого API'),
     input('concurrency', 'Параллельных запросов', 'number'),
-    input('timeout_s', 'Таймаут запроса, сек', 'number')),
+    input('timeout_s', 'Таймаут запроса, сек', 'number'),
+    input('model_kz', 'Модель для казахских диалогов (пусто — основная)', 'text', { list: 'model-list', placeholder: 'например, Sherkala' }),
+    h('label', { class: 'field' }, 'Режим размышлений (KZ-модель)', f.ollama_think_kz)),
   models,
   h('p', { class: 'small muted' }, `Ключ облачного API хранится только в .env на сервере: ${s.openai_key_set ? 'задан' : 'не задан'}. Версия промпта: ${s.prompt_version}.`),
   h('div', { class: 'row' }, save, check), status);

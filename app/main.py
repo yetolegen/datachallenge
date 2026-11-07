@@ -60,7 +60,7 @@ def J(v, default=None):
 # ---------- health / settings ----------
 
 SETTING_KEYS = ["provider", "model", "ollama_url", "ollama_num_ctx", "ollama_think", "openai_base_url",
-                "concurrency", "timeout_s"]
+                "concurrency", "timeout_s", "model_kz", "ollama_think_kz"]
 
 
 def public_settings():
@@ -81,6 +81,7 @@ def get_settings():
 
 @app.put("/api/settings")
 def put_settings(body: dict = Body(...)):
+    # keep empty strings: clearing model_kz must switch routing off
     clean = {k: str(body[k]).strip() for k in SETTING_KEYS if body.get(k) is not None}
     if clean.get("provider") and clean["provider"] not in ("ollama", "openai", "fake"):
         raise ValueError("Провайдер: ollama, openai или fake.")
