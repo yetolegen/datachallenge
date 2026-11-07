@@ -504,6 +504,15 @@ def export_csv(group: str):
                     headers={"Content-Disposition": f'attachment; filename="cqa_{name}.csv"'})
 
 
+@app.get("/api/export/{group}/results.json")
+def export_results(group: str):
+    from app.results_export import build
+    data = build(group)
+    name = "prod" if group.upper() != "DEV" else "dev"
+    return Response(json.dumps(data, ensure_ascii=False, indent=2), media_type="application/json; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="results_{name}.json"'})
+
+
 # ---------- audio proxy ----------
 
 @app.get("/api/audio/{conv_id}")

@@ -85,6 +85,7 @@ export async function render(main) {
               h('td', {}, d.conversations),
               h('td', { class: 'hide-narrow small muted' }, (d.imported_at || '').replace('T', ' ').slice(0, 19)),
               h('td', {}, h('div', { class: 'row' }, evalBtn,
+                h('a', { class: 'btn small', href: apiUrl(`/export/${encodeURIComponent(d.group_id)}/results.json`) }, 'results.json'),
                 h('a', { class: 'btn small', href: apiUrl(`/export/${encodeURIComponent(d.group_id)}.csv`) }, 'Скачать CSV'))));
           })))),
     out,

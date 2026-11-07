@@ -65,6 +65,18 @@ def test_full_demo_flow():
         assert r.status_code == 400 and "вес" in r.json()["detail"]
 
         assert cli.get("/api/export/FLOW.csv").status_code == 200
+        res = cli.get("/api/export/FLOW/results.json").json()
+        assert res["schema_version"] == "1.0" and len(res["results"]) == 3
+        r0 = next(r for r in res["results"] if r["conversation_id"] == "f-0")
+        assert r0["status"] == "ok" and len(r0["criteria"]) == 8
+        by = {c["criterion_id"]: c for c in r0["criteria"]}
+        assert set(by) == {"contact", "discovery", "identification", "consultation", "empathy",
+                           "dialogue", "closure", "critical"}
+        assert by["identification"]["value"] is None          # N/A -> null
+        assert by["contact"]["value"] is True  # active version is v2 now; the v1 appeal stays with v1
+        assert by["consultation"]["value"] == 20 and isinstance(by["dialogue"]["value"], int)
+        assert by["critical"]["value"] is False and r0["score"]["critical_flag"] is False
+        assert all(isinstance(t, int) for c in r0["criteria"] for t in c["evidence_turns"])
         assert cli.get("/api/stats/cost").json()["calls"] == 27
 
 
