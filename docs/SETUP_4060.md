@@ -28,29 +28,52 @@ ollama run qwen3:8b "Сәлеметсіз бе! Қысқаша жауап бер
 
 ### Kazakh model: Sherkala (used for all KZ dialogs)
 
-There's no ready Ollama build, so we import the official weights and let Ollama quantize them to 4-bit (~5 GB).
+**Fast route (~5 GB, ~15 min, no Hugging Face account).** A ready 4-bit GGUF exists on Hugging Face,
+so Ollama pulls it directly. It's a community conversion (`chambette/sherkala`), not an official build.
 
-1. Make a Hugging Face account, open https://huggingface.co/inceptionai/Llama-3.1-Sherkala-8B-Chat and accept
-   the license if it asks (non-commercial license — fine for the hackathon).
-2. Create a token at https://huggingface.co/settings/tokens (type "Read"), then download (~16 GB):
+1. Pull it:
    ```powershell
-   pip install -U huggingface_hub
-   huggingface-cli login
-   huggingface-cli download inceptionai/Llama-3.1-Sherkala-8B-Chat --local-dir C:\models\sherkala
+   ollama pull hf.co/chambette/sherkala:Q4_K_M
    ```
-3. Create the Ollama model:
+2. That GGUF ships with a bare `{{ .Prompt }}` template, which **drops the system prompt and roles**: the
+   grading rules never reach the model. Add the chat format from the official model card and name it `sherkala`:
    ```powershell
-   cd C:\models\sherkala
-   "FROM ." | Out-File -Encoding ascii Modelfile
-   ollama create sherkala --quantize q4_K_M -f Modelfile
-   ollama run sherkala "Сәлеметсіз бе! Қысқаша өзіңізді таныстырыңыз."
+   @'
+   FROM hf.co/chambette/sherkala:Q4_K_M
+   TEMPLATE """{{- range .Messages }}<|start_header_id|>{{ .Role }}<|end_header_id|>
+
+   {{ .Content }}<|eot_id|>{{ end }}<|start_header_id|>assistant<|end_header_id|>
+
+   """
+   PARAMETER stop "<|eot_id|>"
+   PARAMETER stop "<|end_of_text|>"
+   PARAMETER stop "<|start_header_id|>"
+   '@ | Out-File -Encoding ascii Modelfile.sherkala
+   ollama create sherkala -f Modelfile.sherkala
    ```
-   It should answer in fluent Kazakh. After this you can delete `C:\models\sherkala` to free 16 GB.
+3. Check: `ollama show sherkala --template` must start with `{{- range .Messages }}`. Then
+   `ollama run sherkala "Сәлеметсіз бе! Қысқаша өзіңізді таныстырыңыз."` should answer in fluent Kazakh
+   (~45 tokens/s on the 4060).
 4. The app already sends KZ dialogs to `sherkala` (Настройки → "Казахские диалоги"). Check with
    **Проверить подключение** — it warns if the model isn't installed.
 
-If `ollama create` fails or the answers look broken (wrong chat format), tell the team and use the fallback:
-clear the KZ model field in Настройки, so KZ dialogs use qwen3 too.
+**Official route (only if the fast route breaks): 33 GB download.** The repo moved to
+https://huggingface.co/inception42/Llama-3.1-Sherkala-8B-Chat (gated, auto-approved; non-commercial license —
+fine for the hackathon). The weights are full precision, so it's **~33 GB**, not 16.
+
+```powershell
+pip install -U huggingface_hub
+hf auth login          # paste a "Read" token at the prompt, never on the command line
+hf download inception42/Llama-3.1-Sherkala-8B-Chat --local-dir C:\models\sherkala
+```
+
+Then use the Modelfile from step 2 with `FROM C:\models\sherkala` and run
+`ollama create sherkala --quantize q4_K_M -f Modelfile.sherkala`. The official files have no chat template
+either, so the `TEMPLATE` block is needed here too. Afterwards delete `C:\models\sherkala` to free 33 GB, and
+revoke the token.
+
+If the answers look broken, tell the team and use the fallback: clear the KZ model field in Настройки, so KZ
+dialogs use qwen3 too.
 
 ## 3. Get the code
 

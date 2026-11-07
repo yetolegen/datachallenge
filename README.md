@@ -47,9 +47,13 @@ Provider, model, Ollama address and concurrency can also be changed at runtime i
 
 ## Model and cost
 
-| Model | Where | Cost per evaluation (8 calls) |
-|---|---|---|
-| `qwen3:8b` (Q4, Ollama) | local RTX 4060 8 GB | **$0** (electricity only) — latency: _fill in after the DEV run_ |
+| Model | Used for | Where | Cost per evaluation (8 calls) | Latency per call p50 / p95 | Invalid first answers | Full DEV run |
+|---|---|---|---|---|---|---|
+| `qwen3:8b` (Q4, Ollama) | RU + EN (50 dialogs) | local RTX 4060 8 GB | **$0** (electricity only) | 9.9 s / 16.7 s | 0.2% | 72 min (400 calls) |
+| `sherkala` (Llama-3.1-Sherkala-8B, Q4_K_M) | KZ (15 dialogs) | local RTX 4060 8 GB | **$0** | 4.3 s / 6.0 s | 8.5% (fixed on retry) | 10 min (120 calls) |
+
+Full DEV (65 dialogs × 8 criteria): **~82 min**, invalid outputs 2.0%, «требует проверки» 0.17% (1 of 520).
+One evaluation uses ~16k input and ~2k output tokens. Measured 2026-11-07, checklist v2, `LLM_CONCURRENCY=1`.
 
 Cost and tokens are logged for every call (`llm_calls` table); **Настройки → Стоимость и надёжность** shows the
 average cost per evaluation, tokens per dialog, p50/p95 latency and invalid-output rate. For a paid model, add
@@ -103,7 +107,17 @@ python -m eval.run_eval         # accuracy, Cohen's kappa, scale MAE, per-langua
 ```
 
 To compare models: switch the model in **Настройки**, run DEV again, run `eval.run_eval`. Results for each model
-stay cached, so switching back is instant. _Results table: fill in after the bake-off._
+stay cached, so switching back is instant.
+
+Results on the team gold set (13 DEV dialogs, 104 labels: 4 RU, 4 KZ, 4 EN, 1 call; qwen3:8b for RU/EN, sherkala for KZ):
+
+| Checklist | Accuracy | Kappa | Total-score MAE | RU | KZ | EN | Weakest criteria |
+|---|---|---|---|---|---|---|---|
+| v2 (team rulings, `1779644`) | **71.2%** | 0.629 | 17.0 pts | 77.5% | 75.0% | 59.4% | needs 15%, identification 62%, dialog management 62% |
+| v3 (organizers' answers + step-by-step rules, `76cfb00`) | 67.3% | 0.582 | 25.4 pts | 70.0% | 62.5% | 68.8% | needs 38%, contact 54%, identification 54% |
+
+v3 fixed EN and needs but made contact (model often says "no greeting/intro in the first reply") and KZ
+identification/closing worse. Per-dialog disagreements: `python -m eval.run_eval` → `eval/reports/`.
 
 ## Demo-day runbook
 
@@ -130,7 +144,9 @@ set. Progress shows cache hits for unchanged criteria and new calls only for the
 ## Known limitations
 
 - Transcript-only judging: tone and diction in calls are not assessed (the checklist has no audio criteria).
-- Small local models are weaker in Kazakh; check per-language accuracy in the eval report.
+- Small local models are weaker in Kazakh, so KZ dialogs go to Sherkala; check per-language accuracy in the eval report.
+- On the 8 GB 4060, qwen3:8b at `OLLAMA_NUM_CTX=12288` runs ~13% on CPU (7.2 GB). The longest DEV prompt is
+  ~7.7k tokens, so the context can't drop to 8k without cutting long dialogs.
 - The gold set is small (15–20 dialogs), so accuracy numbers have wide error bars.
 
 Open questions and interpretations: [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md).
