@@ -56,8 +56,17 @@ export async function render(main) {
       h('td', { class: 'small muted hide-narrow' }, (r.started_at || '').replace('T', ' ').slice(0, 19)));
   });
 
+  const evaluated = runs.some((r) => r.status !== 'running' && r.done > 0);
+  const step = (n, label, done, hint) => h('div', { class: 'section-tile' },
+    h('div', { class: 'small muted' }, `Шаг ${n}`), h('div', {}, h('b', {}, `${done ? '✓ ' : ''}${label}`)),
+    h('div', { class: 'small muted' }, hint));
   main.replaceChildren(
     h('h1', {}, 'Наборы'),
+    h('div', { class: 'sections', style: 'margin-bottom:12px' },
+      step(1, 'Загрузить набор', datasets.length > 0, 'по group_id или JSON-файлом'),
+      step(2, 'Оценить', evaluated, 'кнопка «Оценить» у набора'),
+      step(3, 'Проверить', false, 'Диалоги, Аналитика, Апелляции'),
+      step(4, 'Выгрузить', false, 'кнопка results.json у набора')),
     h('div', { class: 'panel' },
       h('h2', {}, 'Загрузить по group_id'),
       h('p', { class: 'small muted' }, 'Данные запрашиваются через сервер у API организаторов. Для контрольного набора введите group_id, который сообщат организаторы.'),

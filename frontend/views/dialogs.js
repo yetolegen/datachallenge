@@ -47,6 +47,7 @@ export async function render(main) {
       const x = a[state.sort] ?? -1, y = b[state.sort] ?? -1;
       return (x > y ? 1 : x < y ? -1 : 0) * state.dir;
     });
+    try { sessionStorage.setItem('cqa.list', JSON.stringify(rows.map((r) => r.id))); } catch { /* optional */ }
     if (!rows.length) {
       tableWrap.replaceChildren(h('div', { class: 'panel empty' }, 'Ничего не найдено. Измените фильтры.'));
       return;

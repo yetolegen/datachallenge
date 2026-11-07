@@ -89,8 +89,18 @@ export async function render(main, route) {
     'aria-label': 'Версия чек-листа', value: String(view ? view.evaluation.id : ''),
     onchange: (e) => { location.hash = `#/dialog/${encodeURIComponent(id)}?eval=${e.target.value}`; },
   }, evaluations.map((e) => h('option', { value: String(e.id) }, `Чек-лист v${e.version}`)));
+  // previous/next in the order of the last dialog list the reviewer looked at
+  let order = [];
+  try { order = JSON.parse(sessionStorage.getItem('cqa.list') || '[]'); } catch { /* storage blocked */ }
+  const pos = order.indexOf(id);
+  const navTo = (cid) => h('a', { class: 'btn small', href: `#/dialog/${encodeURIComponent(cid)}` });
+  const prev = pos > 0 && navTo(order[pos - 1]);
+  const next = pos >= 0 && pos < order.length - 1 && navTo(order[pos + 1]);
+  if (prev) prev.textContent = '‹ Предыдущий';
+  if (next) next.textContent = 'Следующий ›';
   const head = h('div', { class: 'card-head' },
     h('a', { href: '#/dialogs', class: 'small' }, '← Диалоги'),
+    prev || '', next || '', pos >= 0 ? h('span', { class: 'small muted' }, `${pos + 1} из ${order.length}`) : '',
     h('h1', {}, conv.source_id),
     h('span', { class: 'badge' }, conv.language),
     h('span', { class: 'badge' }, CHANNEL[conv.channel] || conv.channel),
@@ -167,9 +177,44 @@ export async function render(main, route) {
       h('div', { class: 'small muted', style: 'margin-top:4px' },
         r.status === 'ok' ? `Уверенность модели: ${CONF[r.confidence] || r.confidence}${r.votes ? ` · голоса ${r.votes}` : ''}`
           : 'Модель не дала корректный ответ — нужна оценка проверяющего через апелляцию.',
-        r.reasoning && h('details', { class: 'why' }, h('summary', {}, 'Ход рассуждения модели'), h('div', {}, r.reasoning))),
+        r.reasoning && h('details', { class: 'why' }, h('summary', {}, 'Ход рассуждения модели'), h('div', {}, r.reasoning)),
+        h('button', { class: 'btn small', type: 'button', style: 'margin-top:4px', onclick: () => showTrace(r.id, c.title) },
+          'Как получена оценка')),
       it.appeals.length > 0 && h('div', { class: 'history' }, it.appeals.map((a) => appealHistory(a, c, it.original))),
       actions);
+  }
+
+  async function showTrace(rid, title) {
+    let t;
+    try { t = await api(`/criterion-results/${rid}/trace`); } catch (e) { toast(e.message, 'error'); return; }
+    const when = (s) => (s || '').replace('T', ' ').slice(0, 19);
+    const dlg = h('dialog', { 'aria-label': `Как получена оценка: ${title}` },
+      h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, `Как получена оценка: ${title}`), h('span', { class: 'spacer' }),
+        h('button', { class: 'btn', type: 'button', onclick: () => dlg.close() }, 'Закрыть')),
+      h('dl', { class: 'kv', style: 'margin:10px 0' },
+        h('dt', {}, 'Модель'), h('dd', {}, t.model || '—'),
+        h('dt', {}, 'Версия промпта'), h('dd', {}, t.prompt_version || '—'),
+        h('dt', {}, 'Оценка выполнена'), h('dd', {}, `${when(t.evaluated_at)} UTC${t.run_id ? ` · запуск №${t.run_id}` : ''}`),
+        t.votes ? [h('dt', {}, 'Голоса модели'), h('dd', {}, t.votes)] : '',
+        h('dt', {}, 'Отпечаток текста диалога'), h('dd', { class: 'mono' }, (t.conversation_hash || '').slice(0, 16)),
+        h('dt', {}, 'Отпечаток критерия'), h('dd', { class: 'mono' }, (t.criterion_hash || '').slice(0, 16))),
+      h('p', { class: 'small muted' }, 'Каждый вызов модели записывается. Если текст диалога или формулировка критерия меняются, отпечаток меняется и оценка выполняется заново.'),
+      h('h3', {}, `Вызовы модели (${t.calls.length})`),
+      t.calls.length ? h('table', { class: 'list' },
+        h('thead', {}, h('tr', {}, h('th', {}, 'Время (UTC)'), h('th', {}, 'Модель'), h('th', {}, 'Токены вход/выход'),
+          h('th', {}, 'Время ответа'), h('th', {}, 'Статус'))),
+        h('tbody', {}, t.calls.map((c) => h('tr', {}, h('td', {}, when(c.created_at)), h('td', {}, c.model),
+          h('td', {}, `${c.in_tokens} / ${c.out_tokens}`), h('td', {}, `${(c.latency_ms / 1000).toFixed(1)} с`),
+          h('td', {}, c.status === 'ok' ? 'ок' : `${c.status}${c.error ? `: ${c.error.slice(0, 120)}` : ''}`)))))
+        : h('div', { class: 'small muted' }, 'Нет записанных вызовов.'),
+      t.prompt && h('details', { style: 'margin-top:10px' }, h('summary', {}, 'Промпт, отправленный модели'),
+        h('h3', {}, 'Системный'), h('pre', { class: 'prompt' }, t.prompt.system),
+        h('h3', {}, 'Сообщение'), h('pre', { class: 'prompt' }, t.prompt.user)),
+      t.raw_output && h('details', { style: 'margin-top:6px' }, h('summary', {}, 'Сырой ответ модели'),
+        h('pre', { class: 'prompt' }, t.raw_output)));
+    dlg.addEventListener('close', () => dlg.remove());
+    document.body.append(dlg);
+    dlg.showModal();
   }
 
   function appealHistory(a, c, original) {

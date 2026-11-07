@@ -513,6 +513,31 @@ def export_csv(group: str):
                     headers={"Content-Disposition": f'attachment; filename="cqa_{name}.csv"'})
 
 
+@app.get("/api/criterion-results/{rid}/trace")
+def trace(rid: int):
+    """How a score was produced: every model call (time, model, latency, tokens), the prompt and the raw
+    answer. Shows the evaluation is a live analysis of this dialog, not a replayed result."""
+    with db.connect() as con:
+        r = db.row(con, "SELECT cr.*, e.conversation_id, e.checklist_version_id, e.created_at AS evaluated_at, e.run_id"
+                        " FROM criterion_results cr JOIN evaluations e ON e.id=cr.evaluation_id WHERE cr.id=?", (rid,))
+        if not r:
+            not_found("Результат")
+        calls = db.rows(con, "SELECT provider, model, prompt_version, in_tokens, out_tokens, latency_ms, cost, status,"
+                             " error, created_at FROM llm_calls WHERE cache_key=? ORDER BY id", (r["cache_key"],))
+        conv, utts = judge.load_conversation(con, r["conversation_id"])
+    version = cl_mod.get_version(r["checklist_version_id"])
+    c = next((x for x in version["checklist"]["criteria"] if x["id"] == r["criterion_id"]), None)
+    prompt = None
+    if c and conv:
+        extra = judge.appeal_examples(version["checklist"], c, conv["id"])
+        prompt = {"system": judge.SYSTEM, "user": judge.transcript_block(conv, utts)
+                  + judge.criterion_block(version["checklist"], c, utts, extra)}
+    return {"criterion_id": r["criterion_id"], "model": r["model"], "prompt_version": r["prompt_version"],
+            "votes": r["votes"], "status": r["status"], "evaluated_at": r["evaluated_at"], "run_id": r["run_id"],
+            "conversation_hash": conv["conversation_hash"] if conv else None, "criterion_hash": r["criterion_hash"],
+            "calls": calls, "raw_output": r["raw_output"], "prompt": prompt}
+
+
 @app.get("/api/analytics")
 def analytics(dataset: str = ""):
     """Set-level QA picture for a manager: score distribution, where operators fail, risky dialogs."""
