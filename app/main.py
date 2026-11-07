@@ -60,7 +60,8 @@ def J(v, default=None):
 # ---------- health / settings ----------
 
 SETTING_KEYS = ["provider", "model", "ollama_url", "ollama_num_ctx", "ollama_think", "openai_base_url",
-                "concurrency", "timeout_s", "model_kz", "provider_kz", "ollama_think_kz", "learn_from_appeals"]
+                "concurrency", "timeout_s", "model_kz", "provider_kz", "ollama_think_kz", "learn_from_appeals",
+                "ensemble_k", "ensemble_criteria", "ensemble_temperature"]
 
 
 def public_settings():
@@ -86,9 +87,17 @@ def put_settings(body: dict = Body(...)):
     for k in ("provider", "provider_kz"):
         if clean.get(k) and clean[k] not in ("ollama", "openai", "fake"):
             raise ValueError("Провайдер: ollama, openai или fake.")
-    for k in ("concurrency", "ollama_num_ctx", "timeout_s"):
+    for k in ("concurrency", "ollama_num_ctx", "timeout_s", "ensemble_k"):
         if clean.get(k) and (not clean[k].isdigit() or int(clean[k]) < 1):
             raise ValueError(f"{k} должно быть целым числом больше 0.")
+    if clean.get("ensemble_k") and int(clean["ensemble_k"]) > 9:
+        raise ValueError("Голосований на критерий: не больше 9.")
+    if clean.get("ensemble_temperature"):
+        try:
+            if not 0 <= float(clean["ensemble_temperature"]) <= 2:
+                raise ValueError
+        except ValueError:
+            raise ValueError("Температура голосования: число от 0 до 2.")
     with db.connect() as con:
         cur = db.get_state(con, "llm_settings", {}) or {}
         db.set_state(con, "llm_settings", {**cur, **clean})

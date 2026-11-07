@@ -59,6 +59,12 @@ export async function render(main) {
     h('label', { class: 'field' }, 'Где работает', f.provider_kz),
     input('model_kz', 'Модель для KZ (пусто — как основная)', 'text', { list: 'model-list', placeholder: 'sherkala' }),
     h('label', { class: 'field' }, 'Режим размышлений', f.ollama_think_kz)),
+  h('h3', {}, 'Голосование модели (self-consistency)'),
+  grid(
+    input('ensemble_k', 'Ответов на критерий (1 — выключено, 3 — рекомендуется)', 'number', { min: 1, max: 9 }),
+    input('ensemble_criteria', 'Для каких критериев (id через запятую, * — все)'),
+    input('ensemble_temperature', 'Температура доп. ответов', 'number', { step: '0.1', min: 0, max: 2 })),
+  h('p', { class: 'small muted' }, 'Модель отвечает несколько раз, итог — по большинству голосов; согласие голосов показывается как уверенность. Время оценки растёт пропорционально.'),
   h('h3', {}, 'Обучение на апелляциях'),
   grid(h('label', { class: 'field' }, 'Когда проверяющий меняет оценку, этот случай показывается модели как пример для того же критерия в других диалогах', f.learn_from_appeals)),
   h('h3', {}, 'Подключение'),

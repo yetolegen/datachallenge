@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS criterion_results (
   id INTEGER PRIMARY KEY AUTOINCREMENT, evaluation_id INTEGER, criterion_id TEXT,
   criterion_hash TEXT, verdict TEXT, value REAL, evidence_ids TEXT, checked_range TEXT,
   na_reason TEXT, critical_violation INTEGER, explanation TEXT, reasoning TEXT, confidence TEXT,
-  status TEXT, cache_key TEXT, raw_output TEXT, model TEXT, prompt_version TEXT, cost REAL,
+  status TEXT, cache_key TEXT, raw_output TEXT, model TEXT, prompt_version TEXT, cost REAL, votes TEXT,
   UNIQUE (evaluation_id, criterion_id));
 CREATE INDEX IF NOT EXISTS ix_cr_cache ON criterion_results (cache_key);
 CREATE TABLE IF NOT EXISTS judge_cache (cache_key TEXT PRIMARY KEY, result_json TEXT, created_at TEXT);
@@ -70,6 +70,10 @@ def connect():
 def init():
     with connect() as con:
         con.executescript(SCHEMA)
+        # columns added after first release: add them to existing DBs, keep their data/cache
+        cols = {r[1] for r in con.execute("PRAGMA table_info(criterion_results)")}
+        if "votes" not in cols:
+            con.execute("ALTER TABLE criterion_results ADD COLUMN votes TEXT")
 
 
 def rows(con, sql, args=()):

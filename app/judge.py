@@ -235,9 +235,31 @@ def cache_key(conv, cl, c, s, extra=None):
     return sha(parts)
 
 
+def ensemble_cfg(c, s):
+    """[k, temperature] when self-consistency voting applies to this criterion, else None."""
+    try:
+        k = int(s.get("ensemble_k") or 1)
+    except ValueError:
+        k = 1
+    if k <= 1:
+        return None
+    only = [x.strip() for x in str(s.get("ensemble_criteria") or "").split(",") if x.strip()]
+    if only and "*" not in only and c["id"] not in only:
+        return None
+    return [k, float(s.get("ensemble_temperature") or 0.7)]
+
+
+def key_extra(appeals, ens):
+    # keep old cache keys when neither feature is in play
+    if not ens:
+        return appeals or None
+    return {"appeals": appeals or [], "ensemble": ens}
+
+
 async def judge_criterion(conv, utts, cl, c, s, extra=None):
     """-> (result dict, cache_hit). Model problems never raise: they end as status needs_review."""
-    key = cache_key(conv, cl, c, s, extra)
+    ens = ensemble_cfg(c, s)
+    key = cache_key(conv, cl, c, s, key_extra(extra, ens))
     with db.connect() as con:
         hit = db.row(con, "SELECT result_json FROM judge_cache WHERE cache_key=?", (key,))
     if hit:
@@ -247,14 +269,14 @@ async def judge_criterion(conv, utts, cl, c, s, extra=None):
     user = transcript_block(conv, utts) + criterion_block(cl, c, utts, extra)
     schema = schema_for(c, [u["uid"] for u in utts])
     meta = {"criterion": c, "utterances": utts}
-    raw_outputs, total_cost, errs, out = [], 0.0, ["нет ответа"], {}
-    for attempt in range(2):
-        prompt = user if attempt == 0 else (
-            user + "\n\nПредыдущий ответ не прошёл проверку: " + "; ".join(errs) + ". Исправь и верни JSON заново.")
-        status, err, res = "ok", None, None
+    raw_outputs, cost = [], [0.0]
+
+    async def call(prompt, temperature):
+        """one model call, logged; -> (parsed out, errors, status)"""
+        status, err, res, out, errs = "ok", None, None, {}, []
         async with semaphore(int(s["concurrency"])):
             try:
-                res = await complete(s, system, prompt, schema, meta)
+                res = await complete({**s, "temperature": temperature}, system, prompt, schema, meta)
             except Exception as e:  # noqa: BLE001 - any provider failure becomes needs_review, never a crash
                 status, err = "error", str(e)[:500]
         if res:
@@ -266,7 +288,7 @@ async def judge_criterion(conv, utts, cl, c, s, extra=None):
                 errs = [f"не удалось разобрать JSON: {e}"]
             if errs:
                 status, err = "invalid", "; ".join(errs)
-            total_cost += cost_of(res.model, res.in_tokens, res.out_tokens)
+            cost[0] += cost_of(res.model, res.in_tokens, res.out_tokens)
         else:
             errs = [err]
         with db.connect() as con:
@@ -275,11 +297,38 @@ async def judge_criterion(conv, utts, cl, c, s, extra=None):
                         (key, conv["id"], c["id"], s["provider"], s["model"], PROMPT_VERSION,
                          res.in_tokens if res else 0, res.out_tokens if res else 0, res.latency_ms if res else 0,
                          cost_of(res.model, res.in_tokens, res.out_tokens) if res else 0, status, err, db.now()))
+        return out, errs, status
+
+    errs, out = ["нет ответа"], {}
+    for attempt in range(2):  # main answer at temperature 0, one retry with the validation errors
+        prompt = user if attempt == 0 else (
+            user + "\n\nПредыдущий ответ не прошёл проверку: " + "; ".join(errs) + ". Исправь и верни JSON заново.")
+        out, errs, status = await call(prompt, 0)
         if not errs or status == "error":
             break  # provider down: retrying with the error text won't help
 
-    result = {"criterion_hash": criterion_hash(cl, c), "cache_key": key, "model": s["model"],
-              "prompt_version": PROMPT_VERSION, "cost": total_cost, "raw_output": "\n---\n".join(raw_outputs)}
+    votes = None
+    if not errs and ens:
+        # self-consistency: k-1 extra samples at temperature T, majority vote on the answer;
+        # ties go to the temperature-0 answer; agreement becomes the confidence shown in the UI
+        k, temp = ens
+        samples = [out]
+        for _ in range(k - 1):
+            o2, e2, _st = await call(user, temp)
+            if not e2:
+                samples.append(o2)
+        vk = lambda o: (o["verdict"], o.get("value"))  # noqa: E731
+        counts = {}
+        for o in samples:
+            counts[vk(o)] = counts.get(vk(o), 0) + 1
+        best = max(counts, key=lambda a: (counts[a], a == vk(out)))
+        out = out if vk(out) == best else next(o for o in samples if vk(o) == best)
+        n = counts[best]
+        votes = f"{n}/{len(samples)}"
+        out["confidence"] = "high" if n == len(samples) else "medium" if 2 * n > len(samples) else "low"
+
+    result = {"criterion_hash": criterion_hash(cl, c), "cache_key": key, "model": s["model"], "votes": votes,
+              "prompt_version": PROMPT_VERSION, "cost": cost[0], "raw_output": "\n---\n".join(raw_outputs)}
     if errs:
         result.update(status="needs_review", verdict=None, value=None, evidence_ids=[], checked_range=None,
                       na_reason="", explanation="Требует проверки: " + "; ".join(errs)[:400],
@@ -300,8 +349,9 @@ def save_result(con, eval_id, cid, r):
     # upsert keeps the row id, so appeals stay attached when a result is refreshed
     con.execute(
         "INSERT INTO criterion_results(evaluation_id,criterion_id,criterion_hash,verdict,value,evidence_ids,checked_range,"
-        "na_reason,critical_violation,explanation,reasoning,confidence,status,cache_key,raw_output,model,prompt_version,cost)"
-        " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(evaluation_id,criterion_id) DO UPDATE SET"
+        "na_reason,critical_violation,explanation,reasoning,confidence,status,cache_key,raw_output,model,prompt_version,cost,"
+        "votes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(evaluation_id,criterion_id) DO UPDATE SET"
+        " votes=excluded.votes,"
         " criterion_hash=excluded.criterion_hash, verdict=excluded.verdict, value=excluded.value,"
         " evidence_ids=excluded.evidence_ids, checked_range=excluded.checked_range, na_reason=excluded.na_reason,"
         " critical_violation=excluded.critical_violation, explanation=excluded.explanation, reasoning=excluded.reasoning,"
@@ -309,7 +359,7 @@ def save_result(con, eval_id, cid, r):
         " raw_output=excluded.raw_output, model=excluded.model, prompt_version=excluded.prompt_version, cost=excluded.cost",
         (eval_id, cid, r["criterion_hash"], r["verdict"], r["value"], json.dumps(r["evidence_ids"]),
          json.dumps(r["checked_range"]), r["na_reason"], 0, r["explanation"], r["reasoning"], r["confidence"],
-         r["status"], r["cache_key"], r["raw_output"], r["model"], r["prompt_version"], r["cost"]))
+         r["status"], r["cache_key"], r["raw_output"], r["model"], r["prompt_version"], r["cost"], r.get("votes")))
 
 
 async def evaluate_conversation(conv_id, version, run_id=None, on_result=None):
@@ -330,7 +380,7 @@ async def evaluate_conversation(conv_id, version, run_id=None, on_result=None):
 
     async def one(c):
         extra = appeal_examples(cl, c, conv_id)
-        if existing.get(c["id"]) == cache_key(conv, cl, c, s, extra):
+        if existing.get(c["id"]) == cache_key(conv, cl, c, s, key_extra(extra, ensemble_cfg(c, s))):
             if on_result:
                 on_result(True, "ok")
             return

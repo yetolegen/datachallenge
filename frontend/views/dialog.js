@@ -165,7 +165,7 @@ export async function render(main, route) {
         r.checked_range && h('button', { class: 'chip range', type: 'button', onclick: () => focusUtts([], r.checked_range) },
           `Проверенный участок ${r.checked_range.from}–${r.checked_range.to}`)),
       h('div', { class: 'small muted', style: 'margin-top:4px' },
-        r.status === 'ok' ? `Уверенность модели: ${CONF[r.confidence] || r.confidence}`
+        r.status === 'ok' ? `Уверенность модели: ${CONF[r.confidence] || r.confidence}${r.votes ? ` · голоса ${r.votes}` : ''}`
           : 'Модель не дала корректный ответ — нужна оценка проверяющего через апелляцию.',
         r.reasoning && h('details', { class: 'why' }, h('summary', {}, 'Ход рассуждения модели'), h('div', {}, r.reasoning))),
       it.appeals.length > 0 && h('div', { class: 'history' }, it.appeals.map((a) => appealHistory(a, c, it.original))),

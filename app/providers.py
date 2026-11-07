@@ -46,7 +46,8 @@ async def _post(url, body, headers, timeout):
 async def ollama(s, system, user, schema, meta):
     body = {"model": s["model"], "stream": False, "format": schema, "keep_alive": "30m",
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-            "options": {"temperature": 0, "num_ctx": int(s["ollama_num_ctx"]), "num_predict": 1500}}
+            "options": {"temperature": float(s.get("temperature", 0)), "num_ctx": int(s["ollama_num_ctx"]),
+                        "num_predict": 1500}}
     think = str(s.get("ollama_think", "")).lower()
     if think in ("true", "false"):  # only for thinking models (qwen3); leave empty for others
         body["think"] = think == "true"
@@ -60,7 +61,7 @@ async def openai_compat(s, system, user, schema, meta):
     # works for OpenAI, Gemini's OpenAI endpoint, OpenRouter, LM Studio, vLLM...
     if not config.OPENAI_API_KEY:
         raise ProviderError("OPENAI_API_KEY не задан в .env")
-    body = {"model": s["model"], "temperature": 0, "max_tokens": 1500,
+    body = {"model": s["model"], "temperature": float(s.get("temperature", 0)), "max_tokens": 1500,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
             "response_format": {"type": "json_schema", "json_schema": {"name": "verdict", "schema": schema}}}
     t0 = time.perf_counter()

@@ -46,6 +46,10 @@ LLM_DEFAULTS = {
     "ollama_think_kz": env("OLLAMA_THINK_KZ", ""),
     # reviewer corrections from appeals are shown to the model as examples for that criterion
     "learn_from_appeals": env("LEARN_FROM_APPEALS", "true"),
+    # self-consistency voting: k answers per criterion (1 = off), only for the listed criteria ("*" = all)
+    "ensemble_k": env("ENSEMBLE_K", "1"),
+    "ensemble_criteria": env("ENSEMBLE_CRITERIA", "needs,identification,dialog_management"),
+    "ensemble_temperature": env("ENSEMBLE_TEMPERATURE", "0.7"),
     "openai_base_url": env("OPENAI_BASE_URL", "https://api.openai.com/v1"),
     "concurrency": env("LLM_CONCURRENCY", "1"),
     "timeout_s": env("LLM_TIMEOUT_S", "300"),

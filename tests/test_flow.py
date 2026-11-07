@@ -121,6 +121,26 @@ def test_examples_skip_own_dialog():
     assert "w2" in block and "w1" not in block  # never show the judged dialog's own label
 
 
+def test_ensemble_voting():
+    recs = [{"conversation_id": "ens-1", "channel": "agent chat", "language": "RU", "audio_url": None,
+             "transcript": [{"timestamp": "00:01", "speaker": "client", "text": "Вопрос про тариф (ens)"},
+                            {"timestamp": "00:05", "speaker": "operator", "text": "Здравствуйте! Я Лера. Ответ."}]}]
+    with TestClient(app) as cli:
+        assert cli.post("/api/datasets/upload", files={"file": ("e.json", json.dumps(recs))},
+                        data={"group_id": "ENS"}).status_code == 200
+        assert cli.put("/api/settings", json={"ensemble_k": "12"}).status_code == 400
+        cli.put("/api/settings", json={"ensemble_k": "3", "ensemble_criteria": "needs,empathy"})
+        before = cli.get("/api/stats/cost").json()["calls"]
+        run = wait_run(cli, cli.post("/api/runs", json={"dataset_group_id": "ENS"}).json()["id"])
+        assert run["status"] == "done"
+        # 6 single-call criteria + 2 voted criteria x 3 samples = 12 calls
+        assert cli.get("/api/stats/cost").json()["calls"] - before == 12
+        items = {i["criterion"]["id"]: i for i in cli.get("/api/conversations/ens-1").json()["view"]["items"]}
+        assert items["empathy"]["result"]["votes"] == "3/3" and items["empathy"]["result"]["confidence"] == "high"
+        assert items["contact"]["result"]["votes"] is None
+        cli.put("/api/settings", json={"ensemble_k": "1"})  # leave the shared test DB as other tests expect
+
+
 def test_kz_routing():
     from app.judge import settings_for
     s = {"provider": "openai", "model": "cloud-model", "ollama_think": "false",
