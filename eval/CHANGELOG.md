@@ -18,6 +18,7 @@ and HOLDOUT doesn't drop. Settings fixed: qwen3:8b (RU/EN) + sherkala (KZ), voti
 | 4 | identification: "where to find X" treated as disclosure (mostly KZ) | `identification.instructions` += "explaining where the client finds tariff/report/requisites/section is not disclosure → N/A" + Kazakh N/A example (p1-kz-001) (team #3) | 70.8 → 69.4% (100) | 81.2 → 78.1% (50) | reverted |
 | 5 | dialog_management too lenient: model says "client didn't re-ask" when the client had to repeat/chase | step 2 += "repeat the question because the operator answered something else or dodged → 4" + `focus: ["client_followups"]` (team #4; "unanswered alone → 4" left out to keep step 3's 7) | 70.8 → **71.5%** (103) | 81.2 → 81.2% (52) | **kept** |
 | 6 | closing too strict: short next step inside the goodbye line not counted as summary (4 yes→no) | step 3 += "a short next step in the goodbye line counts as summary" with RU/KZ/EN examples incl. advice («уточните комиссию в банке»); step 1 += system «Клиент завершил разговор» → N/A (team #5) | 71.5 → 72.9% (105) | 81.2 → 79.7% (51) | reverted |
+| 7 | gross_errors: unanswered question flagged as gross error (1 TUNE) | `gross_errors.instructions` += "incomplete answer / no answer / consultation mistake is NOT a gross error" (team #6) | 71.5 → 71.5% (103) | 81.2 → **84.4%** (54) | reverted (rule: needs a TUNE gain) |
 
 Round 0 per criterion (TUNE): contact 100, needs 33.3, identification 66.7, consultation 55.6, empathy 66.7,
 dialog management 61.1, closing 72.2, gross errors 88.9. Per language (TUNE): EN 66.7, KZ 71.4, RU 65.6.
@@ -41,3 +42,6 @@ Next: closing (team #5) — a next step inside the goodbye counts as summary; cl
 
 Round 6 lesson: closing TUNE 72→83% but HOLDOUT closing 87.5→75%: counting ADVICE as a summary over-accepts plain "answer + goodbye" endings that gold scores «Нет». A narrower variant (only explicit hand-off / where the answer will come, no advice) is a different idea and may be tried once.
 Next: gross_errors (team #6) — "an incomplete answer or unanswered question is NOT a gross error".
+
+Round 7 lesson: no TUNE change (the 1 TUNE error didn't flip) but HOLDOUT gross errors 75→100% (+2 labels). Reverted by the rule (holdout must not choose changes). **Team decision candidate:** it only restates the official meaning and is safe to adopt by hand if you accept a holdout-informed change.
+Next: consultation (team #7) — an honest hand-off with a clear next step is a correct next step (20/15), not 5/10.
