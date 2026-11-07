@@ -15,6 +15,7 @@ and HOLDOUT doesn't drop. Settings fixed: qwen3:8b (RU/EN) + sherkala (KZ), voti
 | 1 | needs: model judged answer quality instead of clarification (8 na/yes→no) + counted client details/operator instructions as clarification (3 na→yes) | `needs.instructions`: "оценивает только уточнение, а не качество ответа"; clarification = operator's question/request; «Да» even if the later answer was poor; «Нет» only with a concrete missing detail that made the answer wrong | 68.1 → **69.4%** (100) | 78.1 → **81.2%** (52) | **kept** |
 | 2 | empathy: model said «Нет» because the client didn't complain (criterion "not applicable") | `empathy.instructions` += "no complaint or inconvenience → judge politeness only: polite → «Да»; a missing complaint is never a reason for «Нет»" (team input #1) | 69.4 → **70.8%** (102) | 81.2 → 81.2% (52) | **kept** |
 | 3 | needs: sherkala says «Да» with no operator question (4 KZ); qwen misses a real operator question (3 RU) | `needs.instructions` += final check "«Да» only with an operator line with «?» to the client before the answer, cited in evidence_ids" (team #2) | 70.8 → 70.1% (101) | 81.2 → 79.7% (51) | reverted |
+| 4 | identification: "where to find X" treated as disclosure (mostly KZ) | `identification.instructions` += "explaining where the client finds tariff/report/requisites/section is not disclosure → N/A" + Kazakh N/A example (p1-kz-001) (team #3) | 70.8 → 69.4% (100) | 81.2 → 78.1% (50) | reverted |
 
 Round 0 per criterion (TUNE): contact 100, needs 33.3, identification 66.7, consultation 55.6, empathy 66.7,
 dialog management 61.1, closing 72.2, gross errors 88.9. Per language (TUNE): EN 66.7, KZ 71.4, RU 65.6.
@@ -29,3 +30,6 @@ Next: needs, second pass (team #2) — «Нет» only if the dialog SHOWS the a
 
 Round 3 lesson: a "look for «?»" check made needs worse on both sets (TUNE needs 44→39%, HOLDOUT 75→62.5%); the model starts treating any operator question as clarification. Don't retry mechanical "?" checks.
 Next: identification (team #3) — "explaining WHERE to find tariff/report/requisites is not disclosure → N/A" + a Kazakh N/A example from a TUNE dialog.
+
+Round 4 lesson: broadening the N/A list for identification hurt it badly (TUNE 66.7→55.6%, HOLDOUT 75→50%): real disclosures ("I can see a restriction on your account") slid to N/A. Identification needs a sharper line between "says where to look" and "states a fact about the account", not a longer N/A list. Don't retry.
+Next: dialog_management (team #4) — focus client_followups + "client repeats/re-asks, or the question stays unanswered → 4".
