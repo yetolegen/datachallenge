@@ -19,6 +19,7 @@ and HOLDOUT doesn't drop. Settings fixed: qwen3:8b (RU/EN) + sherkala (KZ), voti
 | 5 | dialog_management too lenient: model says "client didn't re-ask" when the client had to repeat/chase | step 2 += "repeat the question because the operator answered something else or dodged → 4" + `focus: ["client_followups"]` (team #4; "unanswered alone → 4" left out to keep step 3's 7) | 70.8 → **71.5%** (103) | 81.2 → 81.2% (52) | **kept** |
 | 6 | closing too strict: short next step inside the goodbye line not counted as summary (4 yes→no) | step 3 += "a short next step in the goodbye line counts as summary" with RU/KZ/EN examples incl. advice («уточните комиссию в банке»); step 1 += system «Клиент завершил разговор» → N/A (team #5) | 71.5 → 72.9% (105) | 81.2 → 79.7% (51) | reverted |
 | 7 | gross_errors: unanswered question flagged as gross error (1 TUNE) | `gross_errors.instructions` += "incomplete answer / no answer / consultation mistake is NOT a gross error" (team #6) | 71.5 → 71.5% (103) | 81.2 → **84.4%** (54) | reverted (rule: needs a TUNE gain) |
+| 8 | consultation: one question answered, the other ignored → model gives 5 (gold 10) | step 4 += "if at least one question got a concrete answer and another stayed open → 10, not 5" (team #7 not used as written: it would push the gold-5 hand-off dialogs up) | 71.5 → 72.2% (104) | 81.2 → 79.7% (51) | reverted |
 
 Round 0 per criterion (TUNE): contact 100, needs 33.3, identification 66.7, consultation 55.6, empathy 66.7,
 dialog management 61.1, closing 72.2, gross errors 88.9. Per language (TUNE): EN 66.7, KZ 71.4, RU 65.6.
@@ -45,3 +46,6 @@ Next: gross_errors (team #6) — "an incomplete answer or unanswered question is
 
 Round 7 lesson: no TUNE change (the 1 TUNE error didn't flip) but HOLDOUT gross errors 75→100% (+2 labels). Reverted by the rule (holdout must not choose changes). **Team decision candidate:** it only restates the official meaning and is safe to adopt by hand if you accept a holdout-informed change.
 Next: consultation (team #7) — an honest hand-off with a clear next step is a correct next step (20/15), not 5/10.
+
+Round 8 lesson: the 5-vs-10 boundary helped TUNE consultation (56→61%) but HOLDOUT consultation fell 75→62.5%; the scale is noisy at the small end and one label swings it. 3 rounds in a row without a kept change.
+Next (last before the stop rule): closing, NARROW variant — only an explicit hand-off of the client's question ("передам на проверку", "ответ пришлём сюда", "тексеруге жіберемін") counts as a summary; advice still doesn't.
