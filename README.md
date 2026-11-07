@@ -1,8 +1,17 @@
 # CQA — Conversation Quality Analytics
 
+| Mode (same pipeline, switch in **Настройки**) | Holdout (8 dialogs) | Full gold (26 dialogs, 208 labels) | Cost per dialog | Data leaves the server |
+|---|---|---|---|---|
+| **Local**: qwen3:8b (RU/EN) + Sherkala 8B (KZ) on one RTX 4060 | 78.1% | ~70% | **$0** | no |
+| **Hybrid / cloud**: Claude Sonnet 5.5 for the routed criteria | **93.8%** | **95.7%** (κ 0.945) | ~$0.04 | routed criteria only |
+
+Measured against our hand-labelled gold set with the same checklist rules; the holdout dialogs were never used
+to tune rules. Details and rejected experiments: [Validation](#validation-against-human-labels).
+
 **Кратко (RU).** Система оценки качества работы операторов Freedom Broker по чек-листу. Загружает диалоги
-по `group_id` из API организаторов, оценивает каждый критерий **локальной LLM** (qwen3:8b для RU/EN,
-казахская модель Sherkala для KZ, $0 за оценку на одной RTX 4060), показывает ответ, баллы, вес,
+по `group_id` из API организаторов, оценивает каждый критерий LLM — **локально** (qwen3:8b для RU/EN,
+казахская модель Sherkala для KZ, $0 за оценку на одной RTX 4060) или **гибридно**: выбранные критерии
+уходят в Claude Sonnet 5.5 (переключается в Настройках по каждому критерию), показывает ответ, баллы, вес,
 обоснование и **ссылку на конкретную реплику**; при N/A объясняет причину. Апелляция и решение
 проверяющего пересчитывают итог, исходная оценка ИИ сохраняется. Чек-лист редактируется в интерфейсе,
 каждая версия сохраняется, при применении пересчитываются только изменённые критерии.
