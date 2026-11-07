@@ -37,6 +37,10 @@ def test_full_demo_flow():
         assert view["breakdown"]["total"] == 100.0
         ident = next(i for i in view["items"] if i["criterion"]["id"] == "identification")
         assert ident["final"]["verdict"] == "na" and ident["result"]["na_reason"]
+        tr = cli.get(f"/api/criterion-results/{ident['result']['id']}/trace").json()
+        assert len(tr["calls"]) >= 1 and tr["calls"][0]["status"] == "ok" and tr["raw_output"]
+        assert "<transcript>" in tr["prompt"]["user"] and "Идентификация" in tr["prompt"]["user"]
+        assert cli.get("/api/criterion-results/999999/trace").status_code == 404
 
         # appeal + decision -> new total, original untouched
         contact = next(i for i in view["items"] if i["criterion"]["id"] == "contact")
