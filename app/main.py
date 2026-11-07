@@ -21,17 +21,33 @@ logging.basicConfig(level=logging.INFO,
                     format='{"t":"%(asctime)s","lvl":"%(levelname)s","log":"%(name)s","msg":"%(message)s"}')
 
 
+DEMO_READONLY = os.environ.get("DEMO_READONLY", "").lower() in ("1", "true", "yes")
+DEMO_WRITABLE = re.compile(r"^/api/(criterion-results/\d+/appeals|appeals/\d+/decision)$")
+
+
 @asynccontextmanager
 async def lifespan(app):
     db.init()
     cl_mod.ensure_seed()
-    runs.mark_interrupted()
+    if not DEMO_READONLY:  # a read-only demo instance shares the DB and must not touch runs of the main one
+        runs.mark_interrupted()
     yield
 
 
 app = FastAPI(title="CQA", lifespan=lifespan)
 if config.CORS_ORIGINS:
     app.add_middleware(CORSMiddleware, allow_origins=config.CORS_ORIGINS, allow_methods=["*"], allow_headers=["*"])
+
+
+@app.middleware("http")
+async def public_demo_guard(request, call_next):
+    # DEMO_READONLY=1: public instance for the jury. Browsing, appeals and decisions work; anything that
+    # calls the paid model or changes settings, data or the checklist is refused.
+    if DEMO_READONLY and request.method not in ("GET", "HEAD", "OPTIONS") \
+            and not DEMO_WRITABLE.match(request.url.path):
+        return JSONResponse({"detail": "Публичное демо: только просмотр, апелляции и решения. "
+                                       "Оценка моделью и изменения доступны в рабочей версии."}, status_code=403)
+    return await call_next(request)
 
 
 @app.middleware("http")

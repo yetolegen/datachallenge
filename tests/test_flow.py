@@ -198,3 +198,14 @@ def test_hybrid_routing_and_claude_request():
     sch = _plain_ids({"type": "object", "properties": {"evidence_ids": {"type": "array", "items": {"enum": ["u1"]}},
                       "checked_range": {"type": "object"}}, "required": []})
     assert "enum" not in json.dumps(sch["properties"]["evidence_ids"]) and sch["additionalProperties"] is False
+
+
+def test_public_demo_is_read_only(monkeypatch):
+    from app import main
+    monkeypatch.setattr(main, "DEMO_READONLY", True)
+    with TestClient(app) as cli:
+        assert cli.get("/api/settings").status_code == 200
+        assert cli.post("/api/runs", json={"group_id": "DEV"}).status_code == 403
+        assert cli.put("/api/settings", json={"provider": "fake"}).status_code == 403
+        assert main.DEMO_WRITABLE.match("/api/criterion-results/5/appeals")
+        assert main.DEMO_WRITABLE.match("/api/appeals/3/decision")
