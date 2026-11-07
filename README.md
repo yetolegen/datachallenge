@@ -1,5 +1,16 @@
 # CQA — Conversation Quality Analytics
 
+**Кратко (RU).** Система оценки качества работы операторов Freedom Broker по чек-листу. Загружает диалоги
+по `group_id` из API организаторов, оценивает каждый критерий **локальной LLM** (qwen3:8b для RU/EN,
+казахская модель Sherkala для KZ, $0 за оценку на одной RTX 4060), показывает ответ, баллы, вес,
+обоснование и **ссылку на конкретную реплику**; при N/A объясняет причину. Апелляция и решение
+проверяющего пересчитывают итог, исходная оценка ИИ сохраняется. Чек-лист редактируется в интерфейсе,
+каждая версия сохраняется, при применении пересчитываются только изменённые критерии.
+Результаты для организаторов: `results/dev/results.json`, `results/prod/results.json` (формат 1.0).
+
+**Попробовать без GPU:** в `.env` укажите `LLM_PROVIDER=fake` — интерфейс работает полностью,
+оценки ставит тестовый провайдер.
+
 Prototype for the Freedom Broker CQA hackathon. It scores how operators handle customer chats and calls
 against a configurable checklist, shows the answer, points, weight, explanation and the exact message
 behind every criterion, and supports appeals with a reviewer decision and recalculated total.
