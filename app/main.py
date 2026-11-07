@@ -60,7 +60,7 @@ def J(v, default=None):
 # ---------- health / settings ----------
 
 SETTING_KEYS = ["provider", "model", "ollama_url", "ollama_num_ctx", "ollama_think", "openai_base_url",
-                "concurrency", "timeout_s", "model_kz", "ollama_think_kz"]
+                "concurrency", "timeout_s", "model_kz", "provider_kz", "ollama_think_kz"]
 
 
 def public_settings():
@@ -83,8 +83,9 @@ def get_settings():
 def put_settings(body: dict = Body(...)):
     # keep empty strings: clearing model_kz must switch routing off
     clean = {k: str(body[k]).strip() for k in SETTING_KEYS if body.get(k) is not None}
-    if clean.get("provider") and clean["provider"] not in ("ollama", "openai", "fake"):
-        raise ValueError("Провайдер: ollama, openai или fake.")
+    for k in ("provider", "provider_kz"):
+        if clean.get(k) and clean[k] not in ("ollama", "openai", "fake"):
+            raise ValueError("Провайдер: ollama, openai или fake.")
     for k in ("concurrency", "ollama_num_ctx", "timeout_s"):
         if clean.get(k) and (not clean[k].isdigit() or int(clean[k]) < 1):
             raise ValueError(f"{k} должно быть целым числом больше 0.")
@@ -96,15 +97,39 @@ def put_settings(body: dict = Body(...)):
 
 @app.get("/api/llm/models")
 async def llm_models():
+    """Connection check for every provider in use; also says if a configured model isn't installed."""
     s = judge.llm_settings()
-    if s["provider"] != "ollama":
-        return {"ok": True, "models": [], "detail": "Список моделей доступен только для Ollama."}
-    try:
-        async with httpx.AsyncClient(timeout=10) as cli:
-            r = await cli.get(s["ollama_url"].rstrip("/") + "/api/tags")
-        return {"ok": True, "models": [m["name"] for m in r.json().get("models", [])]}
-    except Exception as e:  # noqa: BLE001
-        return {"ok": False, "models": [], "detail": f"Ollama недоступна по адресу {s['ollama_url']}: {e}"}
+    used = {s["provider"]} | ({s.get("provider_kz") or s["provider"]} if s.get("model_kz") else set())
+    out = {"ok": True, "models": [], "problems": []}
+    async with httpx.AsyncClient(timeout=15) as cli:
+        if "ollama" in used:
+            try:
+                r = await cli.get(s["ollama_url"].rstrip("/") + "/api/tags")
+                names = [m["name"] for m in r.json().get("models", [])]
+                out["models"] += names
+                wanted = [m for p, m in ((s["provider"], s["model"]),
+                                         (s.get("provider_kz") or s["provider"], s.get("model_kz"))) if p == "ollama" and m]
+                for m in wanted:
+                    if not any(n == m or n.split(":")[0] == m for n in names):
+                        out["problems"].append(f"Модель «{m}» не установлена в Ollama (ollama pull / ollama create).")
+            except Exception as e:  # noqa: BLE001
+                out["problems"].append(f"Ollama недоступна по адресу {s['ollama_url']}: {e}")
+        if "openai" in used:
+            if not config.OPENAI_API_KEY:
+                out["problems"].append("Облако: OPENAI_API_KEY не задан в .env.")
+            else:
+                try:
+                    r = await cli.get(s["openai_base_url"].rstrip("/") + "/models",
+                                      headers={"Authorization": f"Bearer {config.OPENAI_API_KEY}"})
+                    if r.status_code >= 400:
+                        out["problems"].append(f"Облако ответило {r.status_code}: {r.text[:200]}")
+                    else:
+                        out["models"] += [m.get("id", "") for m in r.json().get("data", [])][:200]
+                except Exception as e:  # noqa: BLE001
+                    out["problems"].append(f"Облако недоступно ({s['openai_base_url']}): {e}")
+    out["ok"] = not out["problems"]
+    out["detail"] = "; ".join(out["problems"])
+    return out
 
 
 # ---------- datasets ----------

@@ -18,7 +18,7 @@ def llm_settings():
     with db.connect() as con:
         over = db.get_state(con, "llm_settings", {}) or {}
     # empty is a real value for these (switch KZ routing / thinking off); for the rest it means "use default"
-    can_be_empty = ("model_kz", "ollama_think", "ollama_think_kz")
+    can_be_empty = ("model_kz", "ollama_think", "ollama_think_kz", "provider_kz")
     return {**config.LLM_DEFAULTS,
             **{k: v for k, v in over.items() if v is not None and (v != "" or k in can_be_empty)}}
 
@@ -26,7 +26,8 @@ def llm_settings():
 def settings_for(conv, s):
     """KZ dialogs go to the Kazakh model when one is set; the cache key follows the model."""
     if (conv.get("language") or "").upper() == "KZ" and s.get("model_kz"):
-        return {**s, "model": s["model_kz"], "ollama_think": s.get("ollama_think_kz", "")}
+        return {**s, "provider": s.get("provider_kz") or s["provider"], "model": s["model_kz"],
+                "ollama_think": s.get("ollama_think_kz", "")}
     return s
 
 

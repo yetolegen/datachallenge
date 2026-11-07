@@ -70,10 +70,12 @@ def test_full_demo_flow():
 
 def test_kz_routing():
     from app.judge import settings_for
-    s = {"model": "qwen3:8b", "ollama_think": "false", "model_kz": "sherkala", "ollama_think_kz": ""}
-    assert settings_for({"language": "KZ"}, s)["model"] == "sherkala"
-    assert settings_for({"language": "KZ"}, s)["ollama_think"] == ""
-    assert settings_for({"language": "RU"}, s)["model"] == "qwen3:8b"
+    s = {"provider": "openai", "model": "cloud-model", "ollama_think": "false",
+         "model_kz": "sherkala", "provider_kz": "ollama", "ollama_think_kz": ""}
+    kz = settings_for({"language": "KZ"}, s)
+    assert (kz["provider"], kz["model"], kz["ollama_think"]) == ("ollama", "sherkala", "")  # main in cloud, KZ local
+    assert settings_for({"language": "RU"}, s)["model"] == "cloud-model"
+    s = {**s, "provider": "ollama", "model": "qwen3:8b"}
     assert settings_for({"language": "KZ"}, {**s, "model_kz": ""})["model"] == "qwen3:8b"  # routing off
     with TestClient(app) as cli:
         cli.put("/api/settings", json={"model_kz": "sherkala"})

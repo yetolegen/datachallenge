@@ -39,8 +39,10 @@ LLM_DEFAULTS = {
     "ollama_url": env("OLLAMA_URL", "http://localhost:11434"),
     "ollama_num_ctx": env("OLLAMA_NUM_CTX", "12288"),
     "ollama_think": env("OLLAMA_THINK", "false"),
-    # optional Kazakh-specialised model (e.g. Sherkala); empty = KZ dialogs use the main model
-    "model_kz": env("LLM_MODEL_KZ", ""),
+    # Kazakh dialogs go to a Kazakh-specialised model with its own provider, so the main model can be
+    # cloud while KZ stays local. Empty model_kz = KZ dialogs use the main model.
+    "model_kz": env("LLM_MODEL_KZ", "sherkala"),
+    "provider_kz": env("LLM_PROVIDER_KZ", "ollama"),
     "ollama_think_kz": env("OLLAMA_THINK_KZ", ""),
     "openai_base_url": env("OPENAI_BASE_URL", "https://api.openai.com/v1"),
     "concurrency": env("LLM_CONCURRENCY", "1"),

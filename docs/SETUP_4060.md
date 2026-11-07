@@ -26,8 +26,31 @@ ollama run qwen3:8b "Сәлеметсіз бе! Қысқаша жауап бер
 - It should answer in Kazakh. `--verbose` prints `eval rate`; on a 4060 expect roughly 35–50 tokens/s.
 - Check the GPU is used: `ollama ps` should show `100% GPU`. If it says CPU, update the NVIDIA driver.
 
-Optional second candidate for the Kazakh bake-off (bigger, may spill to CPU and be slower):
-`ollama pull gemma3:12b`
+### Kazakh model: Sherkala (used for all KZ dialogs)
+
+There's no ready Ollama build, so we import the official weights and let Ollama quantize them to 4-bit (~5 GB).
+
+1. Make a Hugging Face account, open https://huggingface.co/inceptionai/Llama-3.1-Sherkala-8B-Chat and accept
+   the license if it asks (non-commercial license — fine for the hackathon).
+2. Create a token at https://huggingface.co/settings/tokens (type "Read"), then download (~16 GB):
+   ```powershell
+   pip install -U huggingface_hub
+   huggingface-cli login
+   huggingface-cli download inceptionai/Llama-3.1-Sherkala-8B-Chat --local-dir C:\models\sherkala
+   ```
+3. Create the Ollama model:
+   ```powershell
+   cd C:\models\sherkala
+   "FROM ." | Out-File -Encoding ascii Modelfile
+   ollama create sherkala --quantize q4_K_M -f Modelfile
+   ollama run sherkala "Сәлеметсіз бе! Қысқаша өзіңізді таныстырыңыз."
+   ```
+   It should answer in fluent Kazakh. After this you can delete `C:\models\sherkala` to free 16 GB.
+4. The app already sends KZ dialogs to `sherkala` (Настройки → "Казахские диалоги"). Check with
+   **Проверить подключение** — it warns if the model isn't installed.
+
+If `ollama create` fails or the answers look broken (wrong chat format), tell the team and use the fallback:
+clear the KZ model field in Настройки, so KZ dialogs use qwen3 too.
 
 ## 3. Get the code
 
