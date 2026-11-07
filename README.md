@@ -137,11 +137,37 @@ Results on the team gold set (13 DEV dialogs, 104 labels: 4 RU, 4 KZ, 4 EN, 1 ca
 v3 fixed EN and needs but made contact (model often says "no greeting/intro in the first reply") and KZ
 identification/closing worse. Per-dialog disagreements: `python -m eval.run_eval` → `eval/reports/`.
 
+### Experiments on the final gold set (2026-11-07)
+
+Gold = 26 DEV dialogs, 208 labels. **Holdout** = 8 of them never used for training or prompt tuning
+(`p1-ru-001/013/028/024`, `p1-en-011/015`, `p1-kz-007/014`), 64 labels. KZ always on `sherkala`.
+
+| Setup (RU/EN judge) | Holdout | Full gold | Decision |
+|---|---|---|---|
+| Checklist v4, prompted `qwen3:8b` | 76.6% | 65.9% | baseline |
+| v4 + self-consistency voting k=3 (needs, identification, dialog management) | 73.4% | 64.4% | **off** — worse, and 10 chats ≈ 24 min (> 20 min budget) |
+| v4, LoRA fine-tune `qwen3-cqa` (Q4_K_M in Ollama) | 78.1% | 70.2%* | **not used** — +1.5 on holdout, below the +3 bar |
+| **Checklist rules-v5, prompted `qwen3:8b`** | **76.6%** | **69.7%** | **adopted** (`7b13e60`) |
+
+\* Inflated: 10 of the 26 gold dialogs were in the fine-tune's training data; only the holdout is a fair test.
+rules-v5 fixes were derived from the full-gold v4 disagreements, so part of its +3.8 is tuning; the unchanged
+holdout is the clean signal.
+
+**Fine-tune details** (branch `sft`, see `eval/CHANGELOG.md` there): QLoRA (Unsloth) on Qwen3-8B, r=16, 2 epochs,
+288 examples from 36 DEV chats (8 gold + 28 agent-labelled silver, `eval/gold/silver_labels.csv`), 46 min on the
+RTX 4060. Same-runtime control (untrained base): 65.6% vs 79.7% trained, so training itself helps, but after
+Q4_K_M quantization in Ollama the gain over the prompted model shrinks to 1 label. To try it: build the GGUF as in
+the changelog, `ollama create qwen3-cqa`, then pick it in **Настройки**. No code change.
+
 ## Demo-day runbook
 
 **Before stop-code**: fresh clone → setup → run → load DEV → evaluate → tag the commit.
 
 **At hour 23**: Наборы → control `group_id` → Загрузить → Оценить → wait for progress to finish.
+
+**Context size**: for the chats-only control set keep **Настройки → Контекст Ollama = 8192** (chat prompts are
+≤ 3k tokens): qwen3 then fits fully in the 8 GB GPU, runs faster and doesn't push ~11 GB into system RAM.
+Set it back to **12288** before any DEV run, because call prompts reach ~7.7k tokens.
 
 **Criterion swap**: Чек-лист → edit/replace the criterion → **Сохранить версию** → **Применить к набору** → the control
 set. Progress shows cache hits for unchanged criteria and new calls only for the changed one.
