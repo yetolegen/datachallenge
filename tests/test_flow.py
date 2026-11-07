@@ -1,0 +1,68 @@
+"""End-to-end through the HTTP API with the fake model: import -> run -> appeal -> decision -> checklist edit."""
+import json
+import time
+
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+
+def wait_run(cli, rid):
+    for _ in range(200):
+        r = cli.get(f"/api/runs/{rid}").json()
+        if r["status"] != "running":
+            return r
+        time.sleep(0.05)
+    raise AssertionError("run did not finish")
+
+
+def test_full_demo_flow():
+    recs = [{"conversation_id": f"f-{i}", "channel": "agent chat", "language": "RU", "audio_url": None,
+             "transcript": [{"timestamp": "00:01", "speaker": "client", "text": f"Где мой тариф? ({i})"},
+                            {"timestamp": "00:05", "speaker": "operator", "text": "Здравствуйте! Меня зовут Алина."},
+                            {"timestamp": "00:20", "speaker": "operator", "text": "Откройте «Кабинет». До свидания!"}]}
+            for i in range(3)]
+    with TestClient(app) as cli:
+        up = cli.post("/api/datasets/upload", files={"file": ("d.json", json.dumps(recs))}, data={"group_id": "FLOW"})
+        assert up.status_code == 200 and up.json()["imported"] == 3
+
+        run = wait_run(cli, cli.post("/api/runs", json={"dataset_group_id": "FLOW"}).json()["id"])
+        assert run["status"] == "done" and run["done"] == 24 and run["new_calls"] == 24
+
+        # same run again: everything from cache
+        run2 = wait_run(cli, cli.post("/api/runs", json={"dataset_group_id": "FLOW"}).json()["id"])
+        assert run2["cache_hits"] == 24 and run2["new_calls"] == 0
+
+        view = cli.get("/api/conversations/f-0").json()["view"]
+        assert view["breakdown"]["total"] == 100.0
+        ident = next(i for i in view["items"] if i["criterion"]["id"] == "identification")
+        assert ident["final"]["verdict"] == "na" and ident["result"]["na_reason"]
+
+        # appeal + decision -> new total, original untouched
+        contact = next(i for i in view["items"] if i["criterion"]["id"] == "contact")
+        a = cli.post(f"/api/criterion-results/{contact['result']['id']}/appeals", json={"comment": "Не представился"}).json()
+        assert cli.get("/api/appeals").json()[0]["excerpt"]
+        bad = cli.post(f"/api/appeals/{a['id']}/decision", json={"action": "changed", "new_verdict": "maybe", "reason": "x"})
+        assert bad.status_code == 400 and "error" in bad.json()
+        ok = cli.post(f"/api/appeals/{a['id']}/decision", json={"action": "changed", "new_verdict": "no", "reason": "Имени нет"})
+        assert ok.status_code == 200
+        view = cli.get("/api/conversations/f-0").json()["view"]
+        contact = next(i for i in view["items"] if i["criterion"]["id"] == "contact")
+        assert contact["original"]["verdict"] == "yes" and contact["final"]["verdict"] == "no"
+        assert view["original_total"] == 100.0 and view["breakdown"]["total"] == 87.5  # 70/80, identification N/A
+
+        # edit one criterion -> new version -> only that criterion re-runs
+        cl = cli.get("/api/checklist").json()["active"]["checklist"]
+        cl["criteria"][4]["yes_rule"] += " Новая формулировка."
+        saved = cli.post("/api/checklist/versions", json={"checklist": cl, "note": "замена критерия"}).json()
+        assert saved["changed_criteria"] == ["empathy"]
+        run3 = wait_run(cli, cli.post("/api/runs", json={"dataset_group_id": "FLOW"}).json()["id"])
+        assert run3["new_calls"] == 3 and run3["cache_hits"] == 21
+
+        # invalid checklist is rejected with a readable message
+        cl["criteria"][0]["weight"] = -1
+        r = cli.post("/api/checklist/versions", json={"checklist": cl})
+        assert r.status_code == 400 and "вес" in r.json()["detail"]
+
+        assert cli.get("/api/export/FLOW.csv").status_code == 200
+        assert cli.get("/api/stats/cost").json()["calls"] == 27

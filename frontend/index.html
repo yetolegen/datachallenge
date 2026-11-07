@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CQA — оценка качества диалогов</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="#/dialogs">CQA <span>оценка диалогов</span></a>
+    <nav id="nav">
+      <a href="#/dialogs" data-route="dialogs">Диалоги</a>
+      <a href="#/appeals" data-route="appeals">Апелляции <span id="appeal-count" class="count" hidden></span></a>
+      <a href="#/checklist" data-route="checklist">Чек-лист</a>
+      <a href="#/datasets" data-route="datasets">Наборы</a>
+      <a href="#/settings" data-route="settings">Настройки</a>
+    </nav>
+    <label class="role">Роль
+      <select id="role">
+        <option value="operator">Оператор</option>
+        <option value="reviewer">Проверяющий</option>
+      </select>
+    </label>
+  </header>
+  <main id="view" tabindex="-1"></main>
+  <div id="toasts" aria-live="polite"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
