@@ -68,6 +68,22 @@ def test_full_demo_flow():
         assert cli.get("/api/stats/cost").json()["calls"] == 27
 
 
+def test_focus_lines_in_prompt():
+    from app.judge import criterion_block
+    utts = [{"uid": "u1", "idx": 1, "speaker": "client", "text": "Привет"},
+            {"uid": "u2", "idx": 2, "speaker": "bot", "text": "Здравствуйте, я бот"},
+            {"uid": "u3", "idx": 3, "speaker": "system", "text": "Личность клиента подтверждена."},
+            {"uid": "u4", "idx": 4, "speaker": "operator", "text": "Здравствуйте! Я Лера."},
+            {"uid": "u5", "idx": 5, "speaker": "operator", "text": "До свидания!"}]
+    c = {"title": "Контакт", "answer_type": "binary", "yes_rule": "y", "no_rule": "n", "focus": ["first_operator"]}
+    block = criterion_block({"general_rules": ""}, c, utts)
+    assert "[u4] operator: Здравствуйте! Я Лера." in block and "u5" not in block and "бот" not in block
+    c["focus"] = ["system_events", "last_turns"]
+    block = criterion_block({"general_rules": ""}, c, utts)
+    assert "[u3] system" in block and "[u5] operator" in block and block.count("[u3]") == 1
+    assert "Ключевые" not in criterion_block({"general_rules": ""}, {**c, "focus": None}, utts)
+
+
 def test_kz_routing():
     from app.judge import settings_for
     s = {"provider": "openai", "model": "cloud-model", "ollama_think": "false",

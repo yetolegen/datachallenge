@@ -55,8 +55,38 @@ def transcript_block(conv, utts):
             "<transcript>\n" + "\n".join(lines) + "\n</transcript>\n\n")
 
 
-def criterion_block(cl, c):
+def focus_lines(c, utts):
+    """Copies of the transcript lines a criterion depends on, so a small model doesn't get lost in
+    a long dialog. Driven by the checklist's optional `focus` list; unknown keys are ignored."""
+    picked = []
+    for f in c.get("focus") or []:
+        if f == "first_operator":
+            picked += [u for u in utts if u["speaker"] == "operator"][:1]
+        elif f == "last_turns":
+            picked += utts[-4:]
+        elif f == "system_events":
+            picked += [u for u in utts if u["speaker"] == "system"]
+    seen, out = set(), []
+    for u in sorted(picked, key=lambda u: u["idx"]):
+        if u["uid"] not in seen:
+            seen.add(u["uid"])
+            out.append(f"[{u['uid']}] {u['speaker']}: {u['text']}")
+    return out
+
+
+FOCUS_TITLES = {"first_operator": "первая реплика оператора", "last_turns": "конец диалога",
+                "system_events": "системные события"}
+
+
+def criterion_block(cl, c, utts=None):
     out = [f"Общие правила чек-листа:\n{cl.get('general_rules', '')}\n", f"КРИТЕРИЙ: {c['title']}"]
+    lines = focus_lines(c, utts or [])
+    if lines:
+        what = ", ".join(FOCUS_TITLES[f] for f in c["focus"] if f in FOCUS_TITLES)
+        out.append(f"Ключевые реплики для этого критерия ({what}), скопированы из транскрипта выше:\n"
+                   + "\n".join(lines))
+    elif c.get("focus") and utts is not None and "first_operator" in c["focus"]:
+        out.append("Ключевые реплики: в транскрипте нет ни одной реплики оператора.")
     if c.get("instructions"):
         out.append(f"Пояснение: {c['instructions']}")
     if c["answer_type"] == "binary":
@@ -177,7 +207,7 @@ async def judge_criterion(conv, utts, cl, c, s):
         return json.loads(hit["result_json"]), True
 
     system = SYSTEM.replace("{lang}", LANG_NAMES.get(config.EXPLANATION_LANG, "Russian"))
-    user = transcript_block(conv, utts) + criterion_block(cl, c)
+    user = transcript_block(conv, utts) + criterion_block(cl, c, utts)
     schema = schema_for(c, [u["uid"] for u in utts])
     meta = {"criterion": c, "utterances": utts}
     raw_outputs, total_cost, errs, out = [], 0.0, ["нет ответа"], {}

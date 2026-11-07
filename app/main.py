@@ -326,7 +326,7 @@ def preview_prompt(body: dict = Body(...)):
         cid = body.get("conversation_id") or (db.row(con, "SELECT id FROM conversations ORDER BY id LIMIT 1") or {}).get("id")
         conv, utts = judge.load_conversation(con, cid) if cid else (None, [])
     transcript = judge.transcript_block(conv, utts) if conv else "<transcript>…</transcript>\n\n"
-    return {"system": judge.SYSTEM, "user": transcript + judge.criterion_block(cl, c), "conversation_id": cid,
+    return {"system": judge.SYSTEM, "user": transcript + judge.criterion_block(cl, c, utts), "conversation_id": cid,
             "schema": judge.schema_for(c, [u["uid"] for u in utts] or ["u1"])}
 
 
