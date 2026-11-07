@@ -2,10 +2,12 @@
 
 | Mode (same pipeline, switch in **Настройки**) | Holdout (8 dialogs) | Full gold (26 dialogs, 208 labels) | Cost per dialog | Data leaves the server |
 |---|---|---|---|---|
-| **Local**: qwen3:8b (RU/EN) + Sherkala 8B (KZ) on one RTX 4060 | 78.1% | ~70% | **$0** | no |
+| **Local**: qwen3:8b (RU/EN) + Sherkala 8B (KZ) on one RTX 4060 | **81.2%** | ~72% | **$0** | no |
 | **Hybrid / cloud**: Claude Sonnet 5.5 for the routed criteria | **93.8%** | **95.7%** (κ 0.945) | ~$0.04 | routed criteria only |
 
-Measured against our hand-labelled gold set with the same checklist rules; the holdout dialogs were never used
+Local: final overnight-loop rules (round 9, `6537b95`). Claude: measured on the round-4 rules (`15d6239`), before
+the last closing/dialog-management tweaks; re-checked on the final rules before the control run.
+All numbers are against our hand-labelled gold set; the holdout dialogs were never used
 to tune rules. Details and rejected experiments: [Validation](#validation-against-human-labels).
 
 **Кратко (RU).** Система оценки качества работы операторов Freedom Broker по чек-листу. Загружает диалоги
@@ -165,8 +167,8 @@ Gold = 26 DEV dialogs, 208 labels. **Holdout** = 8 of them never used for traini
 | v4, LoRA fine-tune `qwen3-cqa` (Q4_K_M in Ollama) | 78.1% | 70.2%* | **not used** — +1.5 on holdout, below the +3 bar |
 | **Checklist rules-v5, prompted `qwen3:8b`** | **76.6%** | **69.7%** | **adopted** (`7b13e60`) |
 
-| Rules after the overnight keep/revert loop (`15d6239`), prompted `qwen3:8b` | 78.1% | ~70% | adopted for local mode |
-| **Same rules, Claude Sonnet 5.5 (effort low) on all criteria** | **93.8%** | **95.7%** | **adopted for hybrid** (2026-11-08) |
+| Overnight keep/revert loop, round 9 rules (`6537b95`), prompted `qwen3:8b` | **81.2%** | ~72% (TUNE 72.2%) | **adopted for local mode** |
+| **Round-4 rules (`15d6239`), Claude Sonnet 5.5 (effort low) on all criteria** | **93.8%** | **95.7%** | **adopted for hybrid** (2026-11-08) |
 | Sonnet 5.5, effort `medium`, consultation only | — | 84.6% (same as low) | **not used** — the same 4 dialogs differ |
 | Claude Fable 5.1 (5× the price) | not run | — | **skipped** — remaining misses don't move with more thinking (see below) |
 
