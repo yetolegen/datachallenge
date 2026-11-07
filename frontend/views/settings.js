@@ -11,7 +11,7 @@ export async function render(main) {
   const models = h('datalist', { id: 'model-list' });
   const status = h('div', { class: 'small' });
 
-  const PROVIDERS = [['ollama', 'Локальная модель (Ollama)'], ['openai', 'Облако (OpenAI-совместимый API)'], ['fake', 'Тестовый (без модели)']];
+  const PROVIDERS = [['ollama', 'Локальная модель (Ollama)'], ['openai', 'Облако (OpenAI-совместимый API)'], ['anthropic', 'Claude (Anthropic API)'],['fake', 'Тестовый (без модели)']];
   const THINK = [['', 'Не передавать (модель без режима размышлений)'], ['false', 'Выключено'], ['true', 'Включено (медленнее)']];
   const sel = (key, opts) => (f[key] = h('select', { value: s[key] ?? '' }, opts.map(([v, t]) => h('option', { value: v }, t))));
   sel('provider', PROVIDERS);
