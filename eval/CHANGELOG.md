@@ -22,6 +22,7 @@ and HOLDOUT doesn't drop. Settings fixed: qwen3:8b (RU/EN) + sherkala (KZ), voti
 | 8 | consultation: one question answered, the other ignored → model gives 5 (gold 10) | step 4 += "if at least one question got a concrete answer and another stayed open → 10, not 5" (team #7 not used as written: it would push the gold-5 hand-off dialogs up) | 71.5 → 72.2% (104) | 81.2 → 79.7% (51) | reverted |
 | 9 | closing: explicit hand-off inside the goodbye line not counted as summary | step 3 += "a message that the client's question was passed on counts as summary even in the goodbye line (RU/KZ/EN examples); advice/instructions before the goodbye do NOT" — narrow version of round 6 | 71.5 → **72.2%** (104) | 81.2 → 81.2% (52) | **kept** |
 | 10 | needs: sherkala reads «учёл известные детали» as «Да» when the operator only used the client's info (4 KZ) | `needs.yes_rule` rewritten: «Да» = operator asked a question or requested a missing detail before answering; answering from what the client wrote → N/A (analyst + critic) | 72.2 → 72.2% (104) | 81.2 → 79.7% (51) | reverted |
+| 11 | closing: hand-off + goodbye still missed (ru-009, kz-015) | one «Да» example: «[u16] operator: Передам вопрос на проверку. До свидания.» (p1-ru-009), critic-trimmed from two | 72.2 → 70.1% (101) | 81.2 → 82.8% (53) | reverted |
 
 Round 0 per criterion (TUNE): contact 100, needs 33.3, identification 66.7, consultation 55.6, empathy 66.7,
 dialog management 61.1, closing 72.2, gross errors 88.9. Per language (TUNE): EN 66.7, KZ 71.4, RU 65.6.
@@ -57,3 +58,6 @@ Next: fresh analyst + critic pass on the current TUNE disagreements (team list i
 
 Round 10 lesson: rewording the needs yes_rule didn't move TUNE and cost one holdout needs label; needs is now sensitive to any wording change (rounds 3 and 10 both regressed). Leave needs alone.
 Next: closing — two hand-off examples (p1-ru-009, p1-kz-015) to balance 3 «Нет» vs 1 «Да» examples (analyst runner-up).
+
+Round 11 lesson: even one extra «Да» closing example tipped qwen toward «Да» on goodbye-only endings (TUNE closing 78→61%). Closing examples must stay «Нет»-heavy; don't add «Да» examples.
+Next: gross_errors — second disclosure example from a TUNE dialog (p1-en-014) so p1-ru-009 (the only example's source) sees one.
