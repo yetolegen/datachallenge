@@ -113,6 +113,9 @@ def test_focus_lines_in_prompt():
     block = criterion_block({"general_rules": ""}, c, utts)
     assert "[u3] system" in block and "[u5] operator" in block and block.count("[u3]") == 1
     assert "Ключевые" not in criterion_block({"general_rules": ""}, {**c, "focus": None}, utts)
+    utts.append({"uid": "u6", "idx": 6, "speaker": "client", "text": "В каком меню?"})
+    block = criterion_block({"general_rules": ""}, {**c, "focus": ["client_followups"]}, utts)
+    assert "[u6] client: В каком меню?" in block and "[u1]" not in block  # only after the operator joined
 
 
 def test_examples_skip_own_dialog():

@@ -66,6 +66,11 @@ def focus_lines(c, utts):
             picked += utts[-4:]
         elif f == "system_events":
             picked += [u for u in utts if u["speaker"] == "system"]
+        elif f == "client_followups":
+            # what the client wrote after the operator joined: re-asks and unanswered questions live here
+            first_op = next((u["idx"] for u in utts if u["speaker"] == "operator"), None)
+            if first_op is not None:
+                picked += [u for u in utts if u["speaker"] == "client" and u["idx"] > first_op][:8]
     seen, out = set(), []
     for u in sorted(picked, key=lambda u: u["idx"]):
         if u["uid"] not in seen:
@@ -75,7 +80,7 @@ def focus_lines(c, utts):
 
 
 FOCUS_TITLES = {"first_operator": "первая реплика оператора", "last_turns": "конец диалога",
-                "system_events": "системные события"}
+                "system_events": "системные события", "client_followups": "реплики клиента после подключения оператора"}
 
 
 def appeal_examples(cl, c, conv_id, k=3):
