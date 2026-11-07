@@ -16,6 +16,7 @@ and HOLDOUT doesn't drop. Settings fixed: qwen3:8b (RU/EN) + sherkala (KZ), voti
 | 2 | empathy: model said «Нет» because the client didn't complain (criterion "not applicable") | `empathy.instructions` += "no complaint or inconvenience → judge politeness only: polite → «Да»; a missing complaint is never a reason for «Нет»" (team input #1) | 69.4 → **70.8%** (102) | 81.2 → 81.2% (52) | **kept** |
 | 3 | needs: sherkala says «Да» with no operator question (4 KZ); qwen misses a real operator question (3 RU) | `needs.instructions` += final check "«Да» only with an operator line with «?» to the client before the answer, cited in evidence_ids" (team #2) | 70.8 → 70.1% (101) | 81.2 → 79.7% (51) | reverted |
 | 4 | identification: "where to find X" treated as disclosure (mostly KZ) | `identification.instructions` += "explaining where the client finds tariff/report/requisites/section is not disclosure → N/A" + Kazakh N/A example (p1-kz-001) (team #3) | 70.8 → 69.4% (100) | 81.2 → 78.1% (50) | reverted |
+| 5 | dialog_management too lenient: model says "client didn't re-ask" when the client had to repeat/chase | step 2 += "repeat the question because the operator answered something else or dodged → 4" + `focus: ["client_followups"]` (team #4; "unanswered alone → 4" left out to keep step 3's 7) | 70.8 → **71.5%** (103) | 81.2 → 81.2% (52) | **kept** |
 
 Round 0 per criterion (TUNE): contact 100, needs 33.3, identification 66.7, consultation 55.6, empathy 66.7,
 dialog management 61.1, closing 72.2, gross errors 88.9. Per language (TUNE): EN 66.7, KZ 71.4, RU 65.6.
@@ -33,3 +34,6 @@ Next: identification (team #3) — "explaining WHERE to find tariff/report/requi
 
 Round 4 lesson: broadening the N/A list for identification hurt it badly (TUNE 66.7→55.6%, HOLDOUT 75→50%): real disclosures ("I can see a restriction on your account") slid to N/A. Identification needs a sharper line between "says where to look" and "states a fact about the account", not a longer N/A list. Don't retry.
 Next: dialog_management (team #4) — focus client_followups + "client repeats/re-asks, or the question stays unanswered → 4".
+
+Round 5 lesson: showing the client's follow-ups as key lines lets the model see a repeated question; dialog management TUNE 61→67%.
+Next: closing (team #5) — a next step inside the goodbye counts as summary; client left before the operator could close → N/A.
