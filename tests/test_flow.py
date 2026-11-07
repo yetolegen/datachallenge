@@ -84,6 +84,16 @@ def test_focus_lines_in_prompt():
     assert "Ключевые" not in criterion_block({"general_rules": ""}, {**c, "focus": None}, utts)
 
 
+def test_examples_skip_own_dialog():
+    from app.judge import criterion_block
+    c = {"title": "X", "answer_type": "binary", "yes_rule": "y", "no_rule": "n",
+         "examples": [{"source": "d1", "lines": ["[u1] operator: A"], "answer": "yes", "why": "w1"},
+                      {"source": "d2", "lines": ["[u1] operator: B"], "answer": "no", "why": "w2"}]}
+    block = criterion_block({"general_rules": ""}, c, [{"uid": "u1", "idx": 1, "speaker": "operator",
+                                                      "text": "t", "conversation_id": "d1"}])
+    assert "w2" in block and "w1" not in block  # never show the judged dialog's own label
+
+
 def test_kz_routing():
     from app.judge import settings_for
     s = {"provider": "openai", "model": "cloud-model", "ollama_think": "false",

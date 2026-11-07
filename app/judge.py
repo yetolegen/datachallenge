@@ -87,6 +87,13 @@ def criterion_block(cl, c, utts=None):
                    + "\n".join(lines))
     elif c.get("focus") and utts is not None and "first_operator" in c["focus"]:
         out.append("Ключевые реплики: в транскрипте нет ни одной реплики оператора.")
+    # worked examples from other labelled dialogs; never one from the dialog being judged (no leakage)
+    this_conv = (utts or [{}])[0].get("conversation_id") if utts else None
+    exs = [e for e in (c.get("examples") or []) if e.get("source") != this_conv]
+    if exs:
+        out.append("Примеры правильной оценки (из ДРУГИХ диалогов, только для ориентира):")
+        for e in exs:
+            out.append("\n".join(e.get("lines") or []) + f"\n→ ответ: {e.get('answer')}. {e.get('why', '')}")
     if c.get("instructions"):
         out.append(f"Пояснение: {c['instructions']}")
     if c["answer_type"] == "binary":
