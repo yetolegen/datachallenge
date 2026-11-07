@@ -33,6 +33,15 @@ if config.CORS_ORIGINS:
     app.add_middleware(CORSMiddleware, allow_origins=config.CORS_ORIGINS, allow_methods=["*"], allow_headers=["*"])
 
 
+@app.middleware("http")
+async def revalidate_frontend(request, call_next):
+    # browsers must re-check UI files (ETag keeps it cheap), so a git pull never leaves a stale UI behind
+    resp = await call_next(request)
+    if not request.url.path.startswith("/api/"):
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
 @app.exception_handler(ValueError)
 async def value_error(_, e):
     return JSONResponse({"error": "Некорректный запрос", "detail": str(e)}, status_code=400)

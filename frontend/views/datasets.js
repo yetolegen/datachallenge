@@ -59,22 +59,20 @@ export async function render(main) {
   const evaluated = runs.some((r) => r.status !== 'running' && r.done > 0);
   const step = (n, label, done, hint) => h('div', { class: 'section-tile' },
     h('div', { class: 'small muted' }, `Шаг ${n}`), h('div', {}, h('b', {}, `${done ? '✓ ' : ''}${label}`)),
-    h('div', { class: 'small muted' }, hint));
+    hint && h('div', { class: 'small muted' }, hint));
   main.replaceChildren(
     h('h1', {}, 'Наборы'),
     h('div', { class: 'sections', style: 'margin-bottom:12px' },
-      step(1, 'Загрузить набор', datasets.length > 0, 'по group_id или JSON-файлом'),
-      step(2, 'Оценить', evaluated, 'кнопка «Оценить» у набора'),
-      step(3, 'Проверить', false, 'Диалоги, Аналитика, Апелляции'),
-      step(4, 'Выгрузить', false, 'кнопка results.json у набора')),
+      step(1, 'Загрузить набор', datasets.length > 0, ''),
+      step(2, 'Оценить', evaluated, ''),
+      step(3, 'Проверить', false, ''),
+      step(4, 'Выгрузить', false, '')),
     h('div', { class: 'panel' },
       h('h2', {}, 'Загрузить по group_id'),
-      h('p', { class: 'small muted' }, 'Данные запрашиваются через сервер у API организаторов. Для контрольного набора введите group_id, который сообщат организаторы.'),
       !settings.api_template_set && h('div', { class: 'warn-box', style: 'margin-bottom:8px' },
         'Адрес API организаторов не задан: добавьте CQA_API_URL_TEMPLATE в .env. Пока можно загрузить JSON-файл.'),
       loadForm,
       h('h2', { style: 'margin-top:16px' }, 'Или загрузить JSON-файл'),
-      h('p', { class: 'small muted' }, 'Подходит ответ API целиком, массив записей или одна запись.'),
       upForm,
       h('div', { id: 'import-report' })),
     h('div', { class: 'panel' },
@@ -102,6 +100,5 @@ export async function render(main) {
       h('table', { class: 'list' },
         h('thead', {}, h('tr', {}, h('th', {}, '№'), h('th', {}, 'Набор'), h('th', {}, 'Чек-лист'), h('th', {}, 'Прогресс'),
           h('th', { class: 'hide-narrow' }, 'Начат'))),
-        h('tbody', {}, runRows))),
-    h('p', { class: 'small muted' }, `Оценка идёт моделью ${settings.model} (${settings.provider}). Повторный запуск берёт готовые результаты из кэша.`));
+        h('tbody', {}, runRows)))
 }

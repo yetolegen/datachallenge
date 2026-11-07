@@ -32,7 +32,10 @@ export async function render(main, route) {
   };
   const uttEls = {};
   const list = h('div', {}, utts.map((u) => {
-    uttEls[u.uid] = h('div', { class: `utt ${u.speaker}`, id: `utt-${u.uid}` },
+    // bot/system lines are context: collapsed to one line, click to read
+    const quiet = u.speaker === 'bot' || u.speaker === 'system';
+    uttEls[u.uid] = h('div', { class: `utt ${u.speaker}`, id: `utt-${u.uid}`,
+      onclick: quiet ? (e) => { if (e.target.tagName !== 'BUTTON') e.currentTarget.classList.toggle('open'); } : null },
       h('div', { class: 'meta' }, u.uid,
         isCall && h('div', {}, h('button', { class: 'seek', type: 'button', title: 'Прослушать с этого места',
           'aria-label': `Прослушать запись с реплики ${u.uid}`, onclick: () => seek(u) }, '▶'))),
@@ -102,9 +105,7 @@ export async function render(main, route) {
     h('a', { href: '#/dialogs', class: 'small' }, '← Диалоги'),
     prev || '', next || '', pos >= 0 ? h('span', { class: 'small muted' }, `${pos + 1} из ${order.length}`) : '',
     h('h1', {}, conv.source_id),
-    h('span', { class: 'badge' }, conv.language),
-    h('span', { class: 'badge' }, CHANNEL[conv.channel] || conv.channel),
-    h('span', { class: 'badge' }, `Набор ${conv.dataset_group_id}`),
+    h('span', { class: 'muted small' }, `${conv.language} · ${CHANNEL[conv.channel] || conv.channel} · ${conv.dataset_group_id}`),
     conv.revision > 1 && h('span', { class: 'badge mid' }, `Ревизия ${conv.revision}`),
     h('span', { class: 'spacer' }), evalSel, runBtn);
 
@@ -115,43 +116,46 @@ export async function render(main, route) {
     const tot = b.total;
     evalBox.append(
       !b.critical_failed ? '' : h('div', { class: 'critical-banner', role: 'alert' },
-        'Грубая ошибка: ', view.items.filter((i) => b.critical_ids.includes(i.criterion.id)).map((i) => i.criterion.title).join(', '),
-        '. Отмечена отдельно, на итог не влияет.'),
+        'Грубая ошибка: ', view.items.filter((i) => b.critical_ids.includes(i.criterion.id)).map((i) => i.criterion.title).join(', ')),
       h('div', { class: 'total-box' },
-        h('div', { class: `total-num score ${scoreClass(tot)}` }, tot == null ? 'не применимо' : fmt(tot),
-          tot != null && h('small', {}, ` / ${b.scale_max}`)),
         h('div', {},
-          h('div', { class: 'row' },
-            h('span', { class: 'badge accent' }, `Чек-лист v${view.checklist_version.version}`),
-            h('span', { class: `badge ${view.evaluation.status === 'needs_review' ? 'mid' : ''}` },
-              STATUS[view.evaluation.status] || view.evaluation.status),
-            b.provisional && h('span', { class: 'badge mid', title: 'Есть критерии, требующие проверки — они не учтены в итоге' },
-              'Итог предварительный')),
-          view.original_total !== tot && h('div', { class: 'small', style: 'margin-top:6px' },
-            'Оценка ИИ: ', h('b', {}, fmt(view.original_total)), ' → после решений проверяющего: ', h('b', {}, fmt(tot))),
-          h('div', { class: 'small muted', style: 'margin-top:4px' },
-            `Модель: ${view.models.join(', ') || '—'} · стоимость оценки $${fmt(view.cost, 4)}`))),
-      !b.sections.length ? '' : h('div', { class: 'sections' }, b.sections.map((s) => h('div', { class: 'section-tile' },
-        h('div', { class: 'small muted' }, s.title),
-        h('div', { class: 'score' }, s.points == null ? 'не применимо' : `${fmt(s.points)} из ${fmt(s.max_points)}`),
-        h('div', { class: 'bar' }, h('i', { style: `width:${s.percent ?? 0}%` }))))),
-      h('div', { style: 'margin-top:14px' }, view.items.map(critRow)));
+          h('div', { class: `total-num score ${scoreClass(tot)}` }, tot == null ? 'N/A' : fmt(tot),
+            tot != null && h('small', {}, ` / ${b.scale_max}`)),
+          h('div', { class: 'small muted' }, `чек-лист v${view.checklist_version.version}`,
+            b.provisional ? ' · предварительно' : ''),
+          view.original_total !== tot && h('div', { class: 'small' }, 'ИИ ', h('b', {}, fmt(view.original_total)),
+            ' → после апелляции ', h('b', {}, fmt(tot)))),
+        !b.sections.length ? '' : h('div', { class: 'sec-list' }, b.sections.map((s) => h('div', { class: 'sec-mini' },
+          h('span', {}, s.title),
+          h('div', { class: 'bar' }, h('i', { style: `width:${s.percent ?? 0}%` })),
+          h('span', { class: 'num' }, s.points == null ? '—' : `${fmt(s.points, 0)}/${fmt(s.max_points, 0)}`))))),
+      h('div', { class: 'crit-list' }, view.items.map(critRow)));
   }
 
+  // one scannable line per criterion; details on demand. Opening a row also highlights its evidence.
   function critRow(it) {
     const c = it.criterion, r = it.result, s = it.score, f = it.final;
     if (!r) {
-      return h('div', { class: 'crit' }, h('div', { class: 'crit-head' }, h('h3', {}, c.title), h('span', { class: 'answer na' }, 'Не оценён')));
+      return h('div', { class: 'crit' }, h('div', { class: 'crit-line' }, h('span', { class: 'crit-title' }, c.title),
+        h('span', { class: 'answer na' }, 'Не оценён')));
     }
     const lab = answerLabel(c, f.verdict, f.value, f.status);
-    let pts;
-    if (c.is_critical) pts = 'без баллов';
-    else if (f.verdict === 'na') pts = 'исключён, вес перераспределён';
-    else if (s && s.points != null) pts = `${fmt(s.points)} из ${fmt(s.max_points)}`;
-    else pts = 'не учтён в итоге';
-    const weight = c.is_critical ? '' : (s && s.effective_weight != null && s.effective_weight !== c.weight
-      ? `вес ${c.weight} → ${fmt(s.effective_weight)}` : `вес ${c.weight}`);
+    const pts = c.is_critical || f.verdict === 'na' || !s || s.points == null ? '' : `${fmt(s.points, 1)}/${fmt(s.max_points, 1)}`;
     const openAppeal = it.appeals.find((a) => a.status === 'open');
+    const startOpen = !!openAppeal || it.appeals.length > 0 || f.status !== 'ok';
+    const wrap = h('div', { class: `crit${startOpen ? ' open' : ''}`, id: `crit-${c.id}` });
+    const line = h('button', { class: 'crit-line', type: 'button', 'aria-expanded': String(startOpen) },
+      h('span', { class: 'caret', 'aria-hidden': 'true' }, '▸'),
+      h('span', { class: 'crit-title' }, c.title),
+      openAppeal && h('span', { class: 'dot', title: 'Открытая апелляция' }),
+      h('span', { class: 'points' }, pts),
+      h('span', { class: `answer ${lab.cls}` }, lab.text));
+    line.onclick = () => {
+      const open = wrap.classList.toggle('open');
+      line.setAttribute('aria-expanded', String(open));
+      if (open) focusUtts(r.evidence_ids, r.evidence_ids.length ? null : r.checked_range);
+    };
+
     const actions = h('div');
     if (role === 'operator' && !openAppeal) {
       const btn = h('button', { class: 'btn small', type: 'button' }, 'Подать апелляцию');
@@ -161,27 +165,26 @@ export async function render(main, route) {
     if (role === 'reviewer' && openAppeal) {
       actions.append(decisionForm({ ...openAppeal, criterion: c }, () => { toast('Решение сохранено, итог пересчитан'); reload(); }));
     }
-    return h('div', { class: 'crit', id: `crit-${c.id}` },
-      h('div', { class: 'crit-head' },
-        h('h3', {}, c.title),
-        h('span', { class: `answer ${lab.cls}` }, lab.text),
-        h('span', { class: 'points muted small' }, pts, weight && ` · ${weight}`)),
+    const eff = s && s.effective_weight;
+    const weight = c.is_critical ? 'без баллов' : f.verdict === 'na' ? 'вес перераспределён'
+      : `вес ${c.weight}${eff != null && eff !== c.weight ? ` → ${fmt(eff, 1)}` : ''}`;
+    const meta = [r.status === 'ok' ? `уверенность ${CONF[r.confidence] || r.confidence}` : 'модель не дала корректный ответ',
+      r.votes && `голоса ${r.votes}`, weight].filter(Boolean).join(' · ');
+
+    wrap.append(line, h('div', { class: 'crit-body' },
       h('div', { class: 'explain' }, r.explanation),
-      f.verdict === 'na' && r.na_reason && h('div', { class: 'small' }, h('b', {}, 'Причина N/A: '), r.na_reason),
+      f.verdict === 'na' && r.na_reason && h('div', { class: 'small' }, h('b', {}, 'N/A: '), r.na_reason),
       h('div', { class: 'chips' },
         r.evidence_ids.map((uid) => h('button', { class: 'chip', type: 'button', onclick: () => focusUtts([uid]),
           title: byUid[uid] ? byUid[uid].text.slice(0, 160) : '' },
           `${uid} · ${SPEAKER[byUid[uid]?.speaker] || ''}${isCall ? ' ▶' : ''}`)),
         r.checked_range && h('button', { class: 'chip range', type: 'button', onclick: () => focusUtts([], r.checked_range) },
-          `Проверенный участок ${r.checked_range.from}–${r.checked_range.to}`)),
-      h('div', { class: 'small muted', style: 'margin-top:4px' },
-        r.status === 'ok' ? `Уверенность модели: ${CONF[r.confidence] || r.confidence}${r.votes ? ` · голоса ${r.votes}` : ''}`
-          : 'Модель не дала корректный ответ — нужна оценка проверяющего через апелляцию.',
-        r.reasoning && h('details', { class: 'why' }, h('summary', {}, 'Ход рассуждения модели'), h('div', {}, r.reasoning)),
-        h('button', { class: 'btn small', type: 'button', style: 'margin-top:4px', onclick: () => showTrace(r.id, c.title) },
-          'Как получена оценка')),
+          `участок ${r.checked_range.from}–${r.checked_range.to}`)),
+      h('div', { class: 'crit-foot' }, h('span', { class: 'small muted' }, meta), h('span', { class: 'spacer' }),
+        h('button', { class: 'btn link', type: 'button', onclick: () => showTrace(r.id, c.title) }, 'Как получена оценка')),
       it.appeals.length > 0 && h('div', { class: 'history' }, it.appeals.map((a) => appealHistory(a, c, it.original))),
-      actions);
+      actions));
+    return wrap;
   }
 
   async function showTrace(rid, title) {
