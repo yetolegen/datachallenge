@@ -70,7 +70,7 @@ export async function render(main) {
   h('h3', {}, 'Подключение'),
   grid(
     input('ollama_url', 'Адрес Ollama'),
-    input('ollama_num_ctx', 'Контекст Ollama, токенов', 'number'),
+    input('ollama_num_ctx', 'Контекст Ollama, максимум (чаты автоматически используют 8192)', 'number'),
     h('label', { class: 'field' }, 'Адрес облачного API', input('openai_base_url', '').lastChild,
       h('div', { class: 'row', style: 'margin-top:4px' }, presetBtns)),
     input('concurrency', 'Параллельных запросов (локально 1–2, облако 4–8)', 'number'),

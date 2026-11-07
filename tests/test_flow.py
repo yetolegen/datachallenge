@@ -145,6 +145,14 @@ def test_ensemble_voting():
         cli.put("/api/settings", json={"ensemble_k": "1"})  # leave the shared test DB as other tests expect
 
 
+def test_num_ctx_auto():
+    from app.providers import pick_num_ctx
+    s = {"ollama_num_ctx": "12288"}
+    assert pick_num_ctx(s, "x" * 2000, "y" * 7000) == 8192        # a normal chat prompt
+    assert pick_num_ctx(s, "x" * 2000, "y" * 20000) == 12288      # a long call transcript
+    assert pick_num_ctx({"ollama_num_ctx": "4096"}, "x", "y") == 4096  # never above the configured max
+
+
 def test_kz_routing():
     from app.judge import settings_for
     s = {"provider": "openai", "model": "cloud-model", "ollama_think": "false",

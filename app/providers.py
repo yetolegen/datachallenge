@@ -43,10 +43,22 @@ async def _post(url, body, headers, timeout):
     raise last
 
 
+SMALL_CTX = 8192
+
+
+def pick_num_ctx(s, system, user):
+    """Smallest context that fits. 8192 keeps qwen3:8b fully on an 8 GB GPU (and Ollama's RAM low);
+    longer prompts (calls) get the configured maximum so nothing is cut off. Estimate is conservative:
+    Kazakh can be ~1.6 chars/token, plus room for the answer."""
+    cap = int(s["ollama_num_ctx"])
+    need = (len(system) + len(user)) / 1.5 + 1600
+    return SMALL_CTX if cap >= SMALL_CTX and need <= SMALL_CTX else cap
+
+
 async def ollama(s, system, user, schema, meta):
     body = {"model": s["model"], "stream": False, "format": schema, "keep_alive": "30m",
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-            "options": {"temperature": float(s.get("temperature", 0)), "num_ctx": int(s["ollama_num_ctx"]),
+            "options": {"temperature": float(s.get("temperature", 0)), "num_ctx": pick_num_ctx(s, system, user),
                         "num_predict": 1500}}
     think = str(s.get("ollama_think", "")).lower()
     if think in ("true", "false"):  # only for thinking models (qwen3); leave empty for others
