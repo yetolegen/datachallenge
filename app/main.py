@@ -504,6 +504,70 @@ def export_csv(group: str):
                     headers={"Content-Disposition": f'attachment; filename="cqa_{name}.csv"'})
 
 
+@app.get("/api/analytics")
+def analytics(dataset: str = ""):
+    """Set-level QA picture for a manager: score distribution, where operators fail, risky dialogs."""
+    with db.connect() as con:
+        sql, args = "SELECT * FROM conversations", ()
+        if dataset:
+            sql, args = sql + " WHERE dataset_group_id=?", (dataset,)
+        convs = db.rows(con, sql + " ORDER BY source_id", args)
+        vc, views = {}, []
+        for c in convs:
+            ev = pick_evaluation(con, c["id"])
+            if ev:
+                views.append((c, evaluation_view(con, ev, vc)))
+        open_appeals = db.row(con, "SELECT COUNT(*) n FROM appeals WHERE status='open'")["n"]
+        changed = db.row(con, "SELECT COUNT(*) n FROM decisions WHERE action='changed'")["n"]
+
+    totals = [v["breakdown"]["total"] for _, v in views if v["breakdown"]["total"] is not None]
+    buckets = [("< 50", 0, 50), ("50–70", 50, 70), ("70–85", 70, 85), ("85–100", 85, 100.01)]
+    per_crit, langs = {}, {}
+    for c, v in views:
+        t = v["breakdown"]["total"]
+        if t is not None:
+            langs.setdefault(c["language"] or "?", []).append(t)
+        for it in v["items"]:
+            cr, f, s = it["criterion"], it.get("final") or {}, it.get("score") or {}
+            a = per_crit.setdefault(cr["id"], {"id": cr["id"], "title": cr["title"], "critical": bool(cr.get("is_critical")),
+                                               "applicable": 0, "met": 0, "na": 0, "review": 0, "points_pct": []})
+            if f.get("status") != "ok":
+                a["review"] += 1
+            elif f.get("verdict") == "na":
+                a["na"] += 1
+            elif cr.get("is_critical"):
+                a["applicable"] += 1
+                a["met"] += f.get("verdict") == "no"  # "met" = no gross error
+            else:
+                a["applicable"] += 1
+                full = s.get("points") is not None and s.get("max_points") and s["points"] >= s["max_points"] - 1e-9
+                a["met"] += bool(full)
+                if s.get("max_points"):
+                    a["points_pct"].append(100 * s["points"] / s["max_points"])
+    crit = []
+    for a in per_crit.values():
+        pts = a.pop("points_pct")
+        a["met_pct"] = round(100 * a["met"] / a["applicable"], 1) if a["applicable"] else None
+        a["avg_points_pct"] = round(statistics.mean(pts), 1) if pts else None
+        crit.append(a)
+    ranked = sorted(((c, v) for c, v in views if v["breakdown"]["total"] is not None),
+                    key=lambda cv: cv[1]["breakdown"]["total"])
+    brief = lambda c, v: {"id": c["id"], "source_id": c["source_id"], "language": c["language"],
+                          "total": v["breakdown"]["total"]}
+    return {
+        "dialogs": len(convs), "evaluated": len(views),
+        "avg_total": round(statistics.mean(totals), 2) if totals else None,
+        "median_total": round(statistics.median(totals), 2) if totals else None,
+        "distribution": [{"label": l, "count": sum(lo <= t < hi for t in totals)} for l, lo, hi in buckets],
+        "languages": [{"language": k, "dialogs": len(t), "avg_total": round(statistics.mean(t), 2)}
+                      for k, t in sorted(langs.items())],
+        "criteria": crit,
+        "critical": [brief(c, v) for c, v in views if v["breakdown"]["critical_failed"]],
+        "worst": [brief(c, v) for c, v in ranked[:5]],
+        "open_appeals": open_appeals, "changed_by_reviewers": changed,
+    }
+
+
 @app.get("/api/export/{group}/results.json")
 def export_results(group: str):
     from app.results_export import build

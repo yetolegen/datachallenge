@@ -4,6 +4,7 @@ import { getRole, h, setRole } from './dom.js';
 const routes = {
   dialogs: () => import('./views/dialogs.js'),
   dialog: () => import('./views/dialog.js'),
+  analytics: () => import('./views/analytics.js'),
   appeals: () => import('./views/appeals.js'),
   checklist: () => import('./views/checklist.js'),
   datasets: () => import('./views/datasets.js'),

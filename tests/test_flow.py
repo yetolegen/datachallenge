@@ -77,6 +77,12 @@ def test_full_demo_flow():
         assert by["consultation"]["value"] == 20 and isinstance(by["dialogue"]["value"], int)
         assert by["critical"]["value"] is False and r0["score"]["critical_flag"] is False
         assert all(isinstance(t, int) for c in r0["criteria"] for t in c["evidence_turns"])
+
+        an = cli.get("/api/analytics?dataset=FLOW").json()
+        assert an["evaluated"] == 3 and an["avg_total"] == 100.0 and len(an["criteria"]) == 8
+        ident = next(c for c in an["criteria"] if c["id"] == "identification")
+        assert ident["na"] == 3 and ident["met_pct"] is None
+        assert sum(b["count"] for b in an["distribution"]) == 3
         assert cli.get("/api/stats/cost").json()["calls"] == 27
 
 
