@@ -16,6 +16,10 @@ against a configurable checklist, shows the answer, points, weight, explanation 
 behind every criterion, and supports appeals with a reviewer decision and recalculated total.
 
 - **Local LLM judge** (Ollama, default `qwen3:8b`) with an OpenAI-compatible cloud fallback.
+- **Per-criterion hybrid routing**: list criteria in **Настройки → Гибрид** and only those go to Claude
+  (official Anthropic SDK, structured JSON output, transcript prompt-cached across the 8 criteria); the rest
+  stay local. A bank can run fully on-prem for privacy or route the hard judgment calls to the cloud for accuracy.
+  `results.json` reports the mode (`local` / `hybrid` / `external_api`) from the calls actually made.
 - **One model call per (dialog, criterion)**, evidence cited by utterance id and validated on the server.
 - **All arithmetic is deterministic Python** (weights, N/A redistribution, rounding), unit-tested.
 - **Checklist editable in the UI**, every save is a new version; re-applying re-runs only changed criteria.
@@ -49,6 +53,8 @@ Local model setup (Ollama on an RTX 4060 laptop): [docs/SETUP_4060.md](docs/SETU
 | `LLM_MODEL` | e.g. `qwen3:8b` |
 | `OLLAMA_URL`, `OLLAMA_NUM_CTX`, `OLLAMA_THINK` | Ollama address, context size, thinking mode for qwen3 |
 | `OPENAI_BASE_URL`, `OPENAI_API_KEY` | Cloud fallback; the key never leaves the server |
+| `ANTHROPIC_API_KEY` | Claude key for hybrid mode; server-side only, never in the DB or UI |
+| `ROUTE_CRITERIA`, `ROUTE_MODEL`, `CLAUDE_EFFORT` | Criteria sent to Claude (ids, comma-separated, `*` = all, empty = fully local), model (`claude-sonnet-5-5`), effort (`low`) |
 | `LLM_CONCURRENCY`, `LLM_TIMEOUT_S` | Parallel model calls, per-call timeout |
 | `CORS_ORIGINS` | Allowed origins for a future Dynamics 365 host |
 
@@ -69,6 +75,7 @@ Provider, model, Ollama address and concurrency can also be changed at runtime i
 |---|---|---|---|---|---|---|
 | `qwen3:8b` (Q4, Ollama) | RU + EN (50 dialogs) | local RTX 4060 8 GB | **$0** (electricity only) | 9.9 s / 16.7 s | 0.2% | 72 min (400 calls) |
 | `sherkala` (Llama-3.1-Sherkala-8B, Q4_K_M) | KZ (15 dialogs) | local RTX 4060 8 GB | **$0** | 4.3 s / 6.0 s | 8.5% (fixed on retry) | 10 min (120 calls) |
+| `claude-sonnet-5-5` (effort `low`) | routed criteria, all languages | Anthropic API | **~$0.04** (26 gold dialogs = $1.08) | ~10 s | 0% | ~4 min for 26 dialogs at concurrency 4 |
 
 Full DEV (65 dialogs × 8 criteria): **~82 min**, invalid outputs 2.0%, «требует проверки» 0.17% (1 of 520).
 One evaluation uses ~16k input and ~2k output tokens. Measured 2026-11-07, checklist v2, `LLM_CONCURRENCY=1`.
@@ -149,7 +156,23 @@ Gold = 26 DEV dialogs, 208 labels. **Holdout** = 8 of them never used for traini
 | v4, LoRA fine-tune `qwen3-cqa` (Q4_K_M in Ollama) | 78.1% | 70.2%* | **not used** — +1.5 on holdout, below the +3 bar |
 | **Checklist rules-v5, prompted `qwen3:8b`** | **76.6%** | **69.7%** | **adopted** (`7b13e60`) |
 
+| Rules after the overnight keep/revert loop (`15d6239`), prompted `qwen3:8b` | 78.1% | ~70% | adopted for local mode |
+| **Same rules, Claude Sonnet 5.5 (effort low) on all criteria** | **93.8%** | **95.7%** | **adopted for hybrid** (2026-11-08) |
+| Sonnet 5.5, effort `medium`, consultation only | — | 84.6% (same as low) | **not used** — the same 4 dialogs differ |
+| Claude Fable 5.1 (5× the price) | not run | — | **skipped** — remaining misses don't move with more thinking (see below) |
+
 \* Inflated: 10 of the 26 gold dialogs were in the fine-tune's training data; only the holdout is a fair test.
+
+**Sonnet per criterion (full gold):** contact, needs, identification, gross errors 100%; closing 96.2%;
+empathy 92.3%; dialog management 92.3%; consultation 84.6%. Per language: KZ 98.6%, EN 97.5%, RU 92.7%.
+Of the 9 remaining disagreements, 3 are consultation 20 (ours) vs 15 (model), where the model names a real
+minor gap (e.g. no instruction to move money from the D-счёт to the trading account). That matches the PDF's
+15 step, so these look like lenient gold labels rather than model errors; raising effort did not change them,
+which is why a bigger model was not worth 5× the price.
+
+Local qwen per criterion (overnight loop, TUNE set): contact 100%, gross errors ~89–100%, closing ~78%,
+empathy ~78%, dialog management ~67%, identification ~67%, consultation ~56–61%, needs ~44%. A sensible
+hybrid keeps contact and gross errors local and routes the other six to Claude.
 rules-v5 fixes were derived from the full-gold v4 disagreements, so part of its +3.8 is tuning; the unchanged
 holdout is the clean signal.
 
@@ -174,6 +197,9 @@ set. Progress shows cache hits for unchanged criteria and new calls only for the
 
 **Pre-pick demo dialogs**: one with crisp evidence, one with N/A, one with a gross error if any, one call (audio seek).
 
+**Hybrid for the control set**: **Настройки → Гибрид** → criteria `needs,identification,consultation,empathy,dialog_management,closing`
+(or `*` when the 4060 is unavailable — Claude needs no GPU), effort `low`; turn learning from appeals off.
+
 **Fallback**: results survive restarts (SQLite in `data/`). If the local model fails, switch the provider in
 **Настройки** (or `.env` + restart) — not a code change.
 
@@ -191,6 +217,11 @@ set. Progress shows cache hits for unchanged criteria and new calls only for the
 - Small local models are weaker in Kazakh, so KZ dialogs go to Sherkala; check per-language accuracy in the eval report.
 - On the 8 GB 4060, qwen3:8b at `OLLAMA_NUM_CTX=12288` runs ~13% on CPU (7.2 GB). The longest DEV prompt is
   ~7.7k tokens, so the context can't drop to 8k without cutting long dialogs.
-- The gold set is small (15–20 dialogs), so accuracy numbers have wide error bars.
+- The gold set is small (26 dialogs, 8 in the holdout) and labelled by our team, so accuracy numbers have wide
+  error bars and may differ from the organizers' Ground Truth.
+- Hybrid mode sends the transcripts of routed criteria to the Anthropic API; for fully on-prem use leave
+  `ROUTE_CRITERIA` empty.
+- Next step (not done): distil Claude's verdicts and reasoning into the local model (LoRA on qwen) so the
+  on-prem mode closes the gap without sending data out.
 
 Open questions and interpretations: [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md).
