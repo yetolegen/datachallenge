@@ -72,7 +72,7 @@ export async function render(main) {
     const box = h('div', { class: 'steps-edit wide' });
     const paintSteps = () => box.replaceChildren(
       h('div', { class: 'small muted' }, 'Ступени шкалы (верхняя даёт полный вес)'),
-      c.scale.steps.map((s, i) => h('div', { class: 'step' },
+      ...c.scale.steps.map((s, i) => h('div', { class: 'step' },
         bind(s, 'value', h('input', { type: 'number', value: s.value, 'aria-label': 'Балл ступени' }), Number),
         bind(s, 'label', h('input', { type: 'text', value: s.label, 'aria-label': 'Описание ступени' })),
         h('button', { class: 'btn small danger', type: 'button', onclick: () => { c.scale.steps.splice(i, 1); paintSteps(); refreshSide(); } }, 'Удалить'))),
@@ -152,7 +152,7 @@ export async function render(main) {
             draft.sections.push({ id: `s${Date.now().toString(36)}`, title: 'Новая секция' });
             paint();
           } }, 'Добавить секцию'))),
-      draft.criteria.map(critCard),
+      ...draft.criteria.map(critCard),
       h('button', { class: 'btn', type: 'button', onclick: () => {
         draft.criteria.push({ id: `crit_${Date.now().toString(36)}`, section_id: draft.sections[0]?.id, title: 'Новый критерий',
           answer_type: 'binary', weight: 10, na_allowed: false, na_rule: '', yes_rule: '', no_rule: '', instructions: '',

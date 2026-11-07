@@ -5,10 +5,27 @@
 | **Local**: qwen3:8b (RU/EN) + Sherkala 8B (KZ) on one RTX 4060 | **81.2%** | ~72% | **$0** | no |
 | **Hybrid / cloud**: Claude Sonnet 5.5 for the routed criteria | **93.8%** | **95.7%** (κ 0.945) | ~$0.04 | routed criteria only |
 
-Local: final overnight-loop rules (round 9, `6537b95`). Claude: measured on the round-4 rules (`15d6239`), re-checked on the final
-loop rules (round 13, checklist v4): holdout unchanged at 93.8%, same 4 disagreements.
-All numbers are against our hand-labelled gold set; the holdout dialogs were never used
-to tune rules. Details and rejected experiments: [Validation](#validation-against-human-labels).
+Local: final overnight-loop rules (round 9, `6537b95`); Claude: re-checked on the final loop rules (round 13,
+checklist v4), holdout unchanged at 93.8%. All numbers are against our hand-labelled gold set (26 DEV dialogs,
+208 labels; Cohen's κ 0.945 full gold, 0.921 holdout). Details and rejected experiments: [Validation](#validation-against-human-labels).
+
+**What is different here**
+
+- **A small local model that is actually measured.** qwen3:8b + the Kazakh-specialised Sherkala 8B on one laptop
+  RTX 4060 reach **81.2%** on a holdout the rules were never tuned on, at $0 and with no data leaving the bank.
+  The rules behind it were tuned in 13 automatic keep/revert rounds (5 kept), each judged on a TUNE set and checked on the holdout.
+- **The same pipeline, one switch away from the cloud.** Any subset of criteria can be routed to Claude Sonnet 5.5
+  (Настройки → Гибрид); with all criteria routed it reaches 93.8% holdout / 95.7% full gold at ~$0.04 per dialog.
+  A bank picks per criterion between privacy and accuracy.
+- **Numbers you can check.** `python -m eval.run_eval` prints per-criterion accuracy, κ, scale MAE, per-language
+  accuracy and every disagreement with a deep link. Experiments that did not pay off (voting, LoRA, Fable, higher effort)
+  are kept in the table below with the reason they were dropped.
+
+| Dialog card: verdict, points, explanation, evidence lines | Analytics for a QA manager |
+|---|---|
+| ![Dialog card](docs/img/dialog.jpg) | ![Analytics](docs/img/analytics.jpg) |
+| **Checklist editor with versions, apply to a set** | **Settings: local / hybrid / cloud per criterion** |
+| ![Checklist](docs/img/checklist.jpg) | ![Settings](docs/img/settings-hybrid.jpg) |
 
 **Кратко (RU).** Система оценки качества работы операторов Freedom Broker по чек-листу. Загружает диалоги
 по `group_id` из API организаторов, оценивает каждый критерий LLM — **локально** (qwen3:8b для RU/EN,
