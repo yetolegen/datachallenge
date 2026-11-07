@@ -8,6 +8,7 @@ Run it on the machine whose DB has the evaluations, then commit + push results/ 
 import argparse
 import json
 import sys
+from pathlib import Path
 
 from app.config import ROOT
 from app.results_export import build
@@ -23,7 +24,7 @@ def main():
     ap.add_argument("--expect", type=int, help="expected number of dialogs (prod: 10)")
     a = ap.parse_args()
     data = build(a.group)
-    out = a.out or ROOT / "results" / ("dev" if a.group.upper() == "DEV" else "prod") / "results.json"
+    out = Path(a.out) if a.out else ROOT / "results" / ("dev" if a.group.upper() == "DEV" else "prod") / "results.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
