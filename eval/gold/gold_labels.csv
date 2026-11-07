@@ -183,3 +183,27 @@ p1-kz-007,empathy,yes,claude,
 p1-kz-007,dialog_management,10,claude,
 p1-kz-007,closing,no,claude,
 p1-kz-007,gross_errors,no,claude,
+p1-ru-009,contact,yes,claude,disclosure case; organizers: decide yourselves
+p1-ru-009,needs,yes,claude,disclosure case; organizers: decide yourselves
+p1-ru-009,identification,no,claude,disclosure case; organizers: decide yourselves
+p1-ru-009,consultation,5,claude,disclosure case; organizers: decide yourselves
+p1-ru-009,empathy,no,claude,disclosure case; organizers: decide yourselves
+p1-ru-009,dialog_management,4,claude,disclosure case; organizers: decide yourselves
+p1-ru-009,closing,yes,claude,disclosure case; organizers: decide yourselves
+p1-ru-009,gross_errors,yes,claude,disclosure case; organizers: decide yourselves
+p1-kz-015,contact,yes,claude,disclosure case; organizers: decide yourselves
+p1-kz-015,needs,na,claude,disclosure case; organizers: decide yourselves
+p1-kz-015,identification,no,claude,disclosure case; organizers: decide yourselves
+p1-kz-015,consultation,5,claude,disclosure case; organizers: decide yourselves
+p1-kz-015,empathy,no,claude,disclosure case; organizers: decide yourselves
+p1-kz-015,dialog_management,4,claude,disclosure case; organizers: decide yourselves
+p1-kz-015,closing,yes,claude,disclosure case; organizers: decide yourselves
+p1-kz-015,gross_errors,yes,claude,disclosure case; organizers: decide yourselves
+p1-en-014,contact,yes,claude,disclosure case; organizers: decide yourselves
+p1-en-014,needs,na,claude,disclosure case; organizers: decide yourselves
+p1-en-014,identification,no,claude,disclosure case; organizers: decide yourselves
+p1-en-014,consultation,5,claude,disclosure case; organizers: decide yourselves
+p1-en-014,empathy,no,claude,disclosure case; organizers: decide yourselves
+p1-en-014,dialog_management,4,claude,disclosure case; organizers: decide yourselves
+p1-en-014,closing,no,claude,disclosure case; organizers: decide yourselves
+p1-en-014,gross_errors,yes,claude,disclosure case; organizers: decide yourselves
