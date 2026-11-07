@@ -21,6 +21,7 @@ and HOLDOUT doesn't drop. Settings fixed: qwen3:8b (RU/EN) + sherkala (KZ), voti
 | 7 | gross_errors: unanswered question flagged as gross error (1 TUNE) | `gross_errors.instructions` += "incomplete answer / no answer / consultation mistake is NOT a gross error" (team #6) | 71.5 → 71.5% (103) | 81.2 → **84.4%** (54) | reverted (rule: needs a TUNE gain) |
 | 8 | consultation: one question answered, the other ignored → model gives 5 (gold 10) | step 4 += "if at least one question got a concrete answer and another stayed open → 10, not 5" (team #7 not used as written: it would push the gold-5 hand-off dialogs up) | 71.5 → 72.2% (104) | 81.2 → 79.7% (51) | reverted |
 | 9 | closing: explicit hand-off inside the goodbye line not counted as summary | step 3 += "a message that the client's question was passed on counts as summary even in the goodbye line (RU/KZ/EN examples); advice/instructions before the goodbye do NOT" — narrow version of round 6 | 71.5 → **72.2%** (104) | 81.2 → 81.2% (52) | **kept** |
+| 10 | needs: sherkala reads «учёл известные детали» as «Да» when the operator only used the client's info (4 KZ) | `needs.yes_rule` rewritten: «Да» = operator asked a question or requested a missing detail before answering; answering from what the client wrote → N/A (analyst + critic) | 72.2 → 72.2% (104) | 81.2 → 79.7% (51) | reverted |
 
 Round 0 per criterion (TUNE): contact 100, needs 33.3, identification 66.7, consultation 55.6, empathy 66.7,
 dialog management 61.1, closing 72.2, gross errors 88.9. Per language (TUNE): EN 66.7, KZ 71.4, RU 65.6.
@@ -53,3 +54,6 @@ Next (last before the stop rule): closing, NARROW variant — only an explicit h
 
 Round 9 lesson: the narrow closing rule (hand-off counts, advice doesn't) kept round 6's TUNE gain without its holdout loss (TUNE closing 72→78%, HOLDOUT closing unchanged). Precision beats breadth for small models.
 Next: fresh analyst + critic pass on the current TUNE disagreements (team list is exhausted).
+
+Round 10 lesson: rewording the needs yes_rule didn't move TUNE and cost one holdout needs label; needs is now sensitive to any wording change (rounds 3 and 10 both regressed). Leave needs alone.
+Next: closing — two hand-off examples (p1-ru-009, p1-kz-015) to balance 3 «Нет» vs 1 «Да» examples (analyst runner-up).
