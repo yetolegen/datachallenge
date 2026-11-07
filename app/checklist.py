@@ -100,3 +100,27 @@ def changed_criteria(old, new):
     """ids of criteria whose prompt-relevant content differs; these are the only ones that re-run"""
     oh = {c["id"]: criterion_hash(old, c) for c in old["criteria"]}
     return [c["id"] for c in new["criteria"] if oh.get(c["id"]) != criterion_hash(new, c)]
+
+
+def load_seed_as_new_version():
+    """Re-read checklists/seed.json into a new active version. Keeps the DB and cache, so
+    applying it re-runs only the criteria whose text changed."""
+    db.init()
+    new = json.loads(SEED_PATH.read_text(encoding="utf-8"))
+    cur = active_version_id()
+    active = get_version(cur) if cur else None
+    if active and sha(active["checklist"]) == sha(new):
+        return None, []
+    vid = save_version(new, note="Обновлено из seed.json")
+    return vid, changed_criteria(active["checklist"], new) if active else [c["id"] for c in new["criteria"]]
+
+
+if __name__ == "__main__":
+    # python -m app.checklist --load-seed
+    import sys
+    sys.stdout.reconfigure(encoding="utf-8")
+    if "--load-seed" in sys.argv:
+        v, changed = load_seed_as_new_version()
+        print("seed.json уже совпадает с активной версией." if v is None else
+              f"Новая активная версия id={v}. Изменены критерии: {', '.join(changed)}. "
+              "Откройте Чек-лист → «Применить к набору» — пересчитаются только они.")
