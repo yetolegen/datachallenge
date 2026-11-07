@@ -5,8 +5,8 @@
 | **Local**: qwen3:8b (RU/EN) + Sherkala 8B (KZ) on one RTX 4060 | **81.2%** | ~72% | **$0** | no |
 | **Hybrid / cloud**: Claude Sonnet 5.5 for the routed criteria | **93.8%** | **95.7%** (κ 0.945) | ~$0.04 | routed criteria only |
 
-Local: final overnight-loop rules (round 9, `6537b95`). Claude: measured on the round-4 rules (`15d6239`), before
-the last closing/dialog-management tweaks; re-checked on the final rules before the control run.
+Local: final overnight-loop rules (round 9, `6537b95`). Claude: measured on the round-4 rules (`15d6239`), re-checked on the final
+loop rules (round 13, checklist v4): holdout unchanged at 93.8%, same 4 disagreements.
 All numbers are against our hand-labelled gold set; the holdout dialogs were never used
 to tune rules. Details and rejected experiments: [Validation](#validation-against-human-labels).
 
