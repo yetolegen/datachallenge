@@ -78,7 +78,34 @@ FOCUS_TITLES = {"first_operator": "первая реплика оператор�
                 "system_events": "системные события"}
 
 
-def criterion_block(cl, c, utts=None):
+def appeal_examples(cl, c, conv_id, k=3):
+    """Reviewer corrections become examples ("learning from appeals"): latest k decisions that changed
+    this criterion's AI answer, same criterion wording (hash), never from the dialog being judged."""
+    if str(llm_settings().get("learn_from_appeals", "true")).lower() != "true":
+        return []
+    with db.connect() as con:
+        decs = db.rows(con,
+                       "SELECT d.new_verdict, d.new_value, d.reason, cr.evidence_ids, cr.checked_range, e.conversation_id"
+                       " FROM decisions d JOIN appeals a ON a.id=d.appeal_id"
+                       " JOIN criterion_results cr ON cr.id=a.criterion_result_id"
+                       " JOIN evaluations e ON e.id=cr.evaluation_id"
+                       " WHERE d.action='changed' AND cr.criterion_id=? AND cr.criterion_hash=? AND e.conversation_id<>?"
+                       " ORDER BY d.id DESC LIMIT ?", (c["id"], criterion_hash(cl, c), conv_id or "", k))
+        out = []
+        for d in decs:
+            uids = json.loads(d["evidence_ids"] or "[]")
+            if not uids and d["checked_range"]:
+                uids = list(json.loads(d["checked_range"]).values())
+            utts = db.rows(con, f"SELECT uid, speaker, text FROM utterances WHERE conversation_id=? AND uid IN"
+                                f" ({','.join('?' * len(uids))}) ORDER BY idx", (d["conversation_id"], *uids)) if uids else []
+            answer = (str(int(d["new_value"])) if d["new_verdict"] == "scale" and d["new_value"] is not None
+                      else d["new_verdict"])
+            out.append({"source": d["conversation_id"], "lines": [f"[{u['uid']}] {u['speaker']}: {u['text']}" for u in utts][:4],
+                        "answer": answer, "why": f"Проверяющий исправил оценку ИИ: {d['reason']}"})
+    return out
+
+
+def criterion_block(cl, c, utts=None, extra_examples=None):
     out = [f"Общие правила чек-листа:\n{cl.get('general_rules', '')}\n", f"КРИТЕРИЙ: {c['title']}"]
     lines = focus_lines(c, utts or [])
     if lines:
@@ -89,7 +116,7 @@ def criterion_block(cl, c, utts=None):
         out.append("Ключевые реплики: в транскрипте нет ни одной реплики оператора.")
     # worked examples from other labelled dialogs; never one from the dialog being judged (no leakage)
     this_conv = (utts or [{}])[0].get("conversation_id") if utts else None
-    exs = [e for e in (c.get("examples") or []) if e.get("source") != this_conv]
+    exs = [e for e in (c.get("examples") or []) + (extra_examples or []) if e.get("source") != this_conv]
     if exs:
         out.append("Примеры правильной оценки (из ДРУГИХ диалогов, только для ориентира):")
         for e in exs:
@@ -201,20 +228,23 @@ def load_conversation(con, conv_id):
     return conv, utts
 
 
-def cache_key(conv, cl, c, s):
-    return sha([conv["conversation_hash"], criterion_hash(cl, c), PROMPT_VERSION, s["provider"], s["model"]])
+def cache_key(conv, cl, c, s, extra=None):
+    parts = [conv["conversation_hash"], criterion_hash(cl, c), PROMPT_VERSION, s["provider"], s["model"]]
+    if extra:  # appeal examples change the prompt, so they're part of the key (absent = old keys stay valid)
+        parts.append(extra)
+    return sha(parts)
 
 
-async def judge_criterion(conv, utts, cl, c, s):
+async def judge_criterion(conv, utts, cl, c, s, extra=None):
     """-> (result dict, cache_hit). Model problems never raise: they end as status needs_review."""
-    key = cache_key(conv, cl, c, s)
+    key = cache_key(conv, cl, c, s, extra)
     with db.connect() as con:
         hit = db.row(con, "SELECT result_json FROM judge_cache WHERE cache_key=?", (key,))
     if hit:
         return json.loads(hit["result_json"]), True
 
     system = SYSTEM.replace("{lang}", LANG_NAMES.get(config.EXPLANATION_LANG, "Russian"))
-    user = transcript_block(conv, utts) + criterion_block(cl, c, utts)
+    user = transcript_block(conv, utts) + criterion_block(cl, c, utts, extra)
     schema = schema_for(c, [u["uid"] for u in utts])
     meta = {"criterion": c, "utterances": utts}
     raw_outputs, total_cost, errs, out = [], 0.0, ["нет ответа"], {}
@@ -299,11 +329,12 @@ async def evaluate_conversation(conv_id, version, run_id=None, on_result=None):
             con, "SELECT criterion_id, cache_key FROM criterion_results WHERE evaluation_id=? AND status='ok'", (eval_id,))}
 
     async def one(c):
-        if existing.get(c["id"]) == cache_key(conv, cl, c, s):
+        extra = appeal_examples(cl, c, conv_id)
+        if existing.get(c["id"]) == cache_key(conv, cl, c, s, extra):
             if on_result:
                 on_result(True, "ok")
             return
-        r, hit = await judge_criterion(conv, utts, cl, c, s)
+        r, hit = await judge_criterion(conv, utts, cl, c, s, extra)
         with db.connect() as con:
             save_result(con, eval_id, c["id"], r)
         if on_result:

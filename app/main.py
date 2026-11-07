@@ -60,7 +60,7 @@ def J(v, default=None):
 # ---------- health / settings ----------
 
 SETTING_KEYS = ["provider", "model", "ollama_url", "ollama_num_ctx", "ollama_think", "openai_base_url",
-                "concurrency", "timeout_s", "model_kz", "provider_kz", "ollama_think_kz"]
+                "concurrency", "timeout_s", "model_kz", "provider_kz", "ollama_think_kz", "learn_from_appeals"]
 
 
 def public_settings():

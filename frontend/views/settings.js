@@ -18,6 +18,7 @@ export async function render(main) {
   sel('provider_kz', PROVIDERS);
   sel('ollama_think', THINK);
   sel('ollama_think_kz', THINK);
+  sel('learn_from_appeals', [['true', 'Включено: исправления проверяющих становятся примерами'], ['false', 'Выключено']]);
 
   // cloud presets only fill the base URL; the key for that service goes into OPENAI_API_KEY in .env
   const PRESETS = [
@@ -58,6 +59,8 @@ export async function render(main) {
     h('label', { class: 'field' }, 'Где работает', f.provider_kz),
     input('model_kz', 'Модель для KZ (пусто — как основная)', 'text', { list: 'model-list', placeholder: 'sherkala' }),
     h('label', { class: 'field' }, 'Режим размышлений', f.ollama_think_kz)),
+  h('h3', {}, 'Обучение на апелляциях'),
+  grid(h('label', { class: 'field' }, 'Когда проверяющий меняет оценку, этот случай показывается модели как пример для того же критерия в других диалогах', f.learn_from_appeals)),
   h('h3', {}, 'Подключение'),
   grid(
     input('ollama_url', 'Адрес Ollama'),

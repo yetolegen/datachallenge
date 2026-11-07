@@ -56,8 +56,17 @@ def test_full_demo_flow():
         cl["criteria"][4]["yes_rule"] += " Новая формулировка."
         saved = cli.post("/api/checklist/versions", json={"checklist": cl, "note": "замена критерия"}).json()
         assert saved["changed_criteria"] == ["empathy"]
+        # learning from appeals: the reviewer's contact correction on f-0 is now an example, so contact
+        # re-runs for f-1 and f-2 (their prompt changed) but not for f-0 itself; empathy re-runs everywhere
+        from app.judge import appeal_examples
+        from app.checklist import get_version
+        v2 = get_version(saved["id"])["checklist"]
+        contact_c = next(c for c in v2["criteria"] if c["id"] == "contact")
+        ex = appeal_examples(v2, contact_c, "f-1")
+        assert len(ex) == 1 and ex[0]["answer"] == "no" and "Имени нет" in ex[0]["why"]
+        assert appeal_examples(v2, contact_c, "f-0") == []
         run3 = wait_run(cli, cli.post("/api/runs", json={"dataset_group_id": "FLOW"}).json()["id"])
-        assert run3["new_calls"] == 3 and run3["cache_hits"] == 21
+        assert run3["new_calls"] == 5 and run3["cache_hits"] == 19
 
         # invalid checklist is rejected with a readable message
         cl["criteria"][0]["weight"] = -1
@@ -83,7 +92,7 @@ def test_full_demo_flow():
         ident = next(c for c in an["criteria"] if c["id"] == "identification")
         assert ident["na"] == 3 and ident["met_pct"] is None
         assert sum(b["count"] for b in an["distribution"]) == 3
-        assert cli.get("/api/stats/cost").json()["calls"] == 27
+        assert cli.get("/api/stats/cost").json()["calls"] == 29
 
 
 def test_focus_lines_in_prompt():

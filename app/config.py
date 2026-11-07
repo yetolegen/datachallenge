@@ -44,6 +44,8 @@ LLM_DEFAULTS = {
     "model_kz": env("LLM_MODEL_KZ", "sherkala"),
     "provider_kz": env("LLM_PROVIDER_KZ", "ollama"),
     "ollama_think_kz": env("OLLAMA_THINK_KZ", ""),
+    # reviewer corrections from appeals are shown to the model as examples for that criterion
+    "learn_from_appeals": env("LEARN_FROM_APPEALS", "true"),
     "openai_base_url": env("OPENAI_BASE_URL", "https://api.openai.com/v1"),
     "concurrency": env("LLM_CONCURRENCY", "1"),
     "timeout_s": env("LLM_TIMEOUT_S", "300"),
