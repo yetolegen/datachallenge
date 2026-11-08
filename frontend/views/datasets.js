@@ -100,5 +100,5 @@ export async function render(main) {
       h('table', { class: 'list' },
         h('thead', {}, h('tr', {}, h('th', {}, '№'), h('th', {}, 'Набор'), h('th', {}, 'Чек-лист'), h('th', {}, 'Прогресс'),
           h('th', { class: 'hide-narrow' }, 'Начат'))),
-        h('tbody', {}, runRows)))
+        h('tbody', {}, runRows))));
 }
