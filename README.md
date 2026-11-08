@@ -1,6 +1,6 @@
 # CQA — Conversation Quality Analytics
 
-**Team −60HZ** · Freedom Broker CQA hackathon (NU Data Challenge'26) · Yerassyl Tulegen, Mansur
+**Team Avivengers** · Freedom Broker CQA hackathon (NU Data Challenge'26) · Yerassyl Tulegen, Mansur
 
 | Mode (same pipeline, switch in **Настройки**) | Holdout (8 dialogs) | Full gold (26 dialogs, 208 labels) | Cost per dialog | Data leaves the server |
 |---|---|---|---|---|

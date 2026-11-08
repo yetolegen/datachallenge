@@ -73,5 +73,5 @@ def build(group):
         model = model_info(con, group)
     ids = [r["conversation_id"] for r in results]
     assert len(ids) == len(set(ids)), "duplicate conversation_id in export"
-    return {"schema_version": "1.0", "team_name": config.env("TEAM_NAME", "-60HZ"), "model": model,
+    return {"schema_version": "1.0", "team_name": config.env("TEAM_NAME", "Avivengers"), "model": model,
             "results": results}
